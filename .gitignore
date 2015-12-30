@@ -1,0 +1,89 @@
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+*.a
+
+# Log files #
+#############
+*.log
+NUL
+
+# Eclipse workspace #
+#####################
+*.metadata/
+*RemoteSystemsTempFiles/
+.settings
+*.info
+
+# Octave Workspace #
+####################
+octave-workspace
+
+# Build directories #
+#####################
+build/
+exe/
+lst/
+_build/
+doc/
+.idea/
+build-*MinGW*/
+
+# Qt project settings #
+#######################
+*.user
+
+# temporary files #
+###################
+*.new
+*.orig
+*.mot
+*.encrypted
+iq_dump/
+testfiles/
+
+# jlink scripts #
+#################
+commands_jlink_download
+
+# Mac stuff #
+#############
+*.DS_Store
+
+# Vim backups #
+###############
+*.swp
+Session.vim
+*.swo
+
+tags
+
+projects/encrypt/encrypt
+
+# RLP debug launcher #
+######################
+rlp_multi_mac HardwareDebug.launch
+
+# Lint Output Files #
+#####################
+output_files
+AUTO*
+
+# Visual Studio #
+#################
+*.sdf
+*.suo
+Release/
+
+# Videos #
+##########
+*.avi
+*.mp4
+*.mov
+*.wmv
