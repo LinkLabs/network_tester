@@ -1,8 +1,8 @@
 //
 // \file    bsp_rtc.c
-// \brief   BSP RTC Module for the Liferaft repeater.
+// \brief   BSP RTC Module 
 //          Provides configuration, control, and other functions for the RTC on the
-//          Liferaft Repeater Module. using the EFM32GG232F1024 mcu.
+//          EFM32GG232F1024 mcu.
 //
 // \copyright LinkLabs, 2015
 //

@@ -1,8 +1,8 @@
 //
 // \file    bsp_timer.c
-// \brief   BSP Timer Module for the Liferaft repeater.
+// \brief   BSP Timer Module
 //          Provides configuration, control, and other functions for the timer(s) on the
-//          Liferaft Repeater Module. using the EFM32GG232F1024 mcu.
+//          EFM32GG232F1024 mcu.
 //
 // \copyright LinkLabs, 2015
 //

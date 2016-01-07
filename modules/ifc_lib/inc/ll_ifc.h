@@ -2,8 +2,10 @@
 #define __LL_IFC_H
 
 #include <stdint.h>
+#include <time.h>
 #include "ll_ifc_consts.h"
 #include "ifc_struct_defs.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,24 +17,116 @@ extern "C" {
      */
 
     /**
+     * @addtogroup Hal_Interface
+     * @brief The hardware abstraction layer (HAL) for ll_ifc.
+     *
+     * All functions in the HAL are used by the Link Lab's Interface library
+     * (ll_ifc).  These functions must be defined by the program using the
+     * Link Lab's Interface Library.
+     *
+     * @{
+     */
+
+    /**
+     * @brief Write data to the Link Lab's module.
+     *
+     * @param[in] buff
+     *   The buffer containing the data to write to the module.  The size of
+     *   buff must be at least len bytes.
+     *
+     * @param[in] len
+     *   The number of bytes to write.
+     *
+     * @return
+     *   0 - success, negative otherwise
+     *
+     * This function is usually a simple UART wrapper.
+     */
+    int32_t transport_write(uint8_t *buff, uint16_t len);
+
+    /**
+     * @brief Read data from the Link Lab's module.
+     *
+     * @param[inout] buff
+     *   The buffer that will be modified with the data read from the module.
+     *   The size of buff must be at least len bytes.
+     *
+     * @param[in] len
+     *   The number of bytes to read.
+     *
+     * @return
+     *   0 - success, negative otherwise
+     *
+     * This function is usually a simple UART wrapper.
+     */
+    int32_t transport_read(uint8_t *buff, uint16_t len);
+
+    /**
+     * @brief The structure used to store time.
+     */
+    struct time
+    {
+        long tv_sec;
+        long tv_nsec;
+    };
+
+    /**
+     * The following time function must be defined in order to use this library.
+     *
+     * @param[out] tp
+     *   current value of the clock
+     *
+     * @return
+     *   0 - success, negative otherwise
+     */
+    int32_t gettime(struct time *tp);
+
+    /**
+     * The following sleep function must be defined in order to use this library.
+     *
+     * @brief
+     *   Sleep for a number of milliseconds
+     *
+     * @param[in] millis
+     *   number of milliseconds
+     *
+     * @return
+     *   0 - success, negative otherwise
+     */
+    int32_t sleep_ms(int32_t millis);
+
+    /** @} (end addtogroup Hal_Interface) */
+
+
+    /**
      * @addtogroup Module_Interface
      * @brief
      * @{
      */
 
     /**
-     * The following transport function must be defined in order to use this library.
-     * This function is usually a simple UART wrapper.
-     *   0 - success, negative otherwise
+     * @brief
+     *   Convert an return code into a short name string.
+     *
+     * @param[in] return_code
+     *   The return code.
+     *
+     * @return
+     *   The short name string.
      */
-    int32_t transport_write(uint8_t *buff, uint16_t len);
+    char const * ll_return_code_name(int32_t return_code);
 
     /**
-     * The following transport function must be defined in order to use this library.
-     * This function is usually a simple UART wrapper.
-     *   0 - success, negative otherwise
+     * @brief
+     *   Convert an return code into a description.
+     *
+     * @param[in] return_code
+     *   The return code.
+     *
+     * @return
+     *   The user-meaningful return code description.
      */
-    int32_t transport_read(uint8_t *buff, uint16_t len);
+    char const * ll_return_code_description(int32_t return_code);
 
     /**
      * @brief
@@ -57,6 +151,18 @@ extern "C" {
      *   0 - success, negative otherwise
      */
     int32_t ll_hardware_type_get(ll_hardware_type_t *t);
+
+    /**
+     * @brief
+     *   Get the string for the module hardware type
+     *
+     * @param[in] t
+     *   The hardware type enum, usually from ll_hardware_type_get().
+     *
+     * @return
+     *   The string describing the hardware type.
+     */
+    const char * ll_hardware_type_string(ll_hardware_type_t t);
 
     /**
      * @brief
@@ -236,7 +342,7 @@ extern "C" {
      * @return
      *   0 - success, negative otherwise
      */
-    int32_t ll_sleep();
+    int32_t ll_sleep(void);
 
     /**
      * @brief
@@ -248,7 +354,7 @@ extern "C" {
      * @return
      *   0 - success, negative otherwise
      */
-    int32_t ll_reset_mcu();
+    int32_t ll_reset_mcu(void);
 
     /**
      * @brief
@@ -260,7 +366,7 @@ extern "C" {
      * @return
      *   0 - success, negative otherwise
      */
-    int32_t ll_bootloader_mode();
+    int32_t ll_bootloader_mode(void);
 
      /**
       * @brief
@@ -283,6 +389,51 @@ extern "C" {
       *   0 - success, negative otherwise
       */
      int32_t ll_irq_flags(uint32_t flags_to_clear, uint32_t *flags);
+
+    /**
+     * @brief
+     *   Get the module's current timestamp value.
+     *
+     * @details
+     *   The Link Labs module maintains an internal free-running timestamp.
+     *   This function queries the current timestamp value at the time the
+     *   request is processed by the module.  This function does not
+     *   account for any transmission delays.
+     *
+     * @param[out] timestamp_us
+     *   The current module timestamp in microseconds.  The timestamp will
+     *   wrap back to zero roughly every 71 minutes.
+     *
+     * @return
+     *   0 - success, negative otherwise
+     */
+    int32_t ll_timestamp_get(uint32_t * timestamp_us);
+
+    /**
+     * @brief
+     *   Set the module's current timestamp value using an external reference.
+     *
+     * @details
+     *   The Link Labs module maintains an internal free-running timestamp
+     *   which is used by ll_pkt_send_timestamp() to schedule packet
+     *   transmission.  This function sets the correction applied to the
+     *   module's timestamp so that it aligns to the external reference.
+     *
+     * @param[in] operation
+     *   The operation performed by the module when setting the timestamp.
+     *   See @ref ll_timestamp_operation_t for details.
+     *
+     * @param[in] timestamp_us
+     *   The reference timestamp in microseconds.
+     *
+     * @param[out] actual_timestamp_us
+     *   The module's timestamp in microseconds after the set operation
+     *   was applied.
+     *
+     * @return
+     *   0 - success, negative otherwise
+     */
+    int32_t ll_timestamp_set(ll_timestamp_operation_t operation, uint32_t timestamp_us, uint32_t * actual_timestamp_us);
 
 #if 0
      /**
@@ -315,7 +466,25 @@ extern "C" {
       */
      int8_t ll_irq_flags_mask_set(uint32_t flags_to_clear, uint32_t *flags);
 #endif
+
+    /**
+     * @brief
+     *   Reset the host-side state maintained by the interface.
+     *
+     * @details
+     *   The host implementation maintains a very small amount of state
+     *   including the current message identifier.  This function resets
+     *   this internal state and is intended to allow for controlled
+     *   testing.  This function is not normally used in production code.
+     *
+     * @return
+     *   0 - success, negative otherwise.
+     */
+    int32_t ll_reset_state( void );
+
     /** @} (end addtogroup Module_Interface) */
+
+
     /** @} (end addtogroup Link_Labs_Interface_Library) */
 
 #ifdef __cplusplus

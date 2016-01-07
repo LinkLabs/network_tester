@@ -1,5 +1,6 @@
 #include "ll_ifc.h"
 #include "ll_ifc_consts.h"
+#include "ifc_struct_defs.h"
 #include "ll_ifc_symphony.h"
 #include "ll_ifc_no_mac.h"
 #include <time.h>
@@ -7,7 +8,7 @@
 #include <string.h>
 
 #ifndef NULL    // <time.h> defines NULL on *some* platforms
-#define NULL		        (0)
+#define NULL                (0)
 #endif
 #define CMD_HEADER_LEN      (5)
 #define RESP_HEADER_LEN     (6)
@@ -17,42 +18,15 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
 
 const uint32_t OPEN_NET_TOKEN = 0x4f50454e;
 
-/**
- * @brief
- *   Read/Write from the module.  If the opcode does not have a payload
- *   associated with it, then buf_in and/or buf_out should be set to NULL
- *
- * @param[in] op
- *   opcode of the command being sent to the module
- *
- * @param[in] in_buf
- *   byte array containing the data payload to be sent to the module
- *
- * @param[in] in_len
- *   size of the output buffer in bytes
- *
- * @param[in] out_buf
- *   byte array for storing data returned from the module
- *
- * @param[in] out_len
- *   size of the output buffer in bytes
- *
- * @return
- *   positive number of bytes returned,
- *   negative if an error
- *   Error Values:
- *    LL_IFC_ERROR_INCORRECT_PARAMETER = Invalid values in one or more arguments 
- *    other negative values defined by recv_packet()
- *
- */
-static int32_t hal_read_write(opcode_t op, uint8_t buf_in[], uint16_t in_len, uint8_t buf_out[], uint16_t out_len)
+static int32_t message_num = 0;
+
+int32_t hal_read_write(opcode_t op, uint8_t buf_in[], uint16_t in_len, uint8_t buf_out[], uint16_t out_len)
 {
     //  int i;
     //  int curr_byte;
     //  int num_bytes;
 
     int32_t ret;
-    static int32_t message_num = 0;
 
     // Error checking:
     // Only valid combinations of bufher & length pairs are:
@@ -75,6 +49,84 @@ static int32_t hal_read_write(opcode_t op, uint8_t buf_in[], uint16_t in_len, ui
     message_num++;
 
     return(ret);
+}
+
+int32_t hal_read_write_exact(opcode_t op, uint8_t buf_in[], uint16_t in_len, uint8_t buf_out[], uint16_t out_len)
+{
+    int32_t ret = hal_read_write(op, buf_in, in_len, buf_out, out_len);
+    if (ret >= 0)
+    {
+        if (ret != out_len)
+        {
+            return LL_IFC_ERROR_INCORRECT_RESPONSE_LENGTH;
+        }
+        ret = 0;
+    }
+    return ret;
+}
+
+char const * ll_return_code_name(int32_t return_code)
+{
+    switch (return_code)
+    {
+        case -LL_IFC_ACK:                            return "ACK";
+        case -LL_IFC_NACK_CMD_NOT_SUPPORTED:         return "CMD_NOT_SUPPORTED";
+        case -LL_IFC_NACK_INCORRECT_CHKSUM:          return "INCORRECT_CHKSUM ";
+        case -LL_IFC_NACK_PAYLOAD_LEN_OOR:           return "PAYLOAD_LEN_OOR";
+        case -LL_IFC_NACK_PAYLOAD_OOR:               return "PAYLOAD_OOR";
+        case -LL_IFC_NACK_BOOTUP_IN_PROGRESS:        return "BOOTUP_IN_PROGRESS";
+        case -LL_IFC_NACK_BUSY_TRY_AGAIN:            return "BUSY_TRY_AGAIN";
+        case -LL_IFC_NACK_APP_TOKEN_REG:             return "APP_TOKEN_REG";
+        case -LL_IFC_NACK_PAYLOAD_LEN_EXCEEDED:      return "PAYLOAD_LEN_EXCEEDED";
+        case -LL_IFC_NACK_OTHER:                     return "OTHER";
+
+        case LL_IFC_ERROR_INCORRECT_PARAMETER:       return "INCORRECT_PARAMETER";
+        case LL_IFC_ERROR_INCORRECT_RESPONSE_LENGTH: return "INCORRECT_RESPONSE_LENGTH";
+        case LL_IFC_ERROR_MESSAGE_NUMBER_MISMATCH:   return "MESSAGE_NUMBER_MISMATCH";
+        case LL_IFC_ERROR_CHECKSUM_MISMATCH:         return "CHECKSUM_MISMATCH";
+        case LL_IFC_ERROR_COMMAND_MISMATCH:          return "COMMAND_MISMATCH";
+        case LL_IFC_ERROR_HOST_INTERFACE_TIMEOUT:    return "HOST_INTERFACE_TIMEOUT";
+        case LL_IFC_ERROR_BUFFER_TOO_SMALL:          return "BUFFER_TOO_SMALL";
+        case LL_IFC_ERROR_START_OF_FRAME:            return "START_OF_FRAME";
+        case LL_IFC_ERROR_HEADER:                    return "HEADER";
+        case LL_IFC_ERROR_TIMEOUT:                   return "TIMEOUT";
+        case LL_IFC_ERROR_INCORRECT_MESSAGE_SIZE:    return "INCORRECT_MESSAGE_SIZE";
+        case LL_IFC_ERROR_NO_NETWORK:                return "NO_NETWORK";
+
+        default:                                     return "UNKNOWN";
+    }
+}
+
+char const * ll_return_code_description(int32_t return_code)
+{
+    switch (return_code)
+    {
+        case -LL_IFC_ACK:                            return "success";
+        case -LL_IFC_NACK_CMD_NOT_SUPPORTED:         return "Command not supported";
+        case -LL_IFC_NACK_INCORRECT_CHKSUM:          return "Incorrect Checksum";
+        case -LL_IFC_NACK_PAYLOAD_LEN_OOR:           return "Length of payload sent in command was out of range";
+        case -LL_IFC_NACK_PAYLOAD_OOR:               return "Payload sent in command was out of range.";
+        case -LL_IFC_NACK_BOOTUP_IN_PROGRESS:        return "Not allowed since firmware bootup still in progress. Wait.";
+        case -LL_IFC_NACK_BUSY_TRY_AGAIN:            return "Operation prevented by temporary event. Retry later.";
+        case -LL_IFC_NACK_APP_TOKEN_REG:             return "Application token is not registered for this node.";
+        case -LL_IFC_NACK_PAYLOAD_LEN_EXCEEDED:      return "Payload length is greater than the max supported length";
+        case -LL_IFC_NACK_OTHER:                     return "Unspecified error";
+
+        case LL_IFC_ERROR_INCORRECT_PARAMETER:       return "The parameter value was invalid";
+        case LL_IFC_ERROR_INCORRECT_RESPONSE_LENGTH: return "Module response was not the expected size";
+        case LL_IFC_ERROR_MESSAGE_NUMBER_MISMATCH:   return "Message number in response doesn't match expected";
+        case LL_IFC_ERROR_CHECKSUM_MISMATCH:         return "Checksum mismatch";
+        case LL_IFC_ERROR_COMMAND_MISMATCH:          return "Command mismatch (responding to a different command)";
+        case LL_IFC_ERROR_HOST_INTERFACE_TIMEOUT:    return "Timed out waiting for Rx bytes from interface";
+        case LL_IFC_ERROR_BUFFER_TOO_SMALL:          return "Response larger than provided output buffer";
+        case LL_IFC_ERROR_START_OF_FRAME:            return "transport_read failed getting FRAME_START";
+        case LL_IFC_ERROR_HEADER:                    return "transport_read failed getting header";
+        case LL_IFC_ERROR_TIMEOUT:                   return "The operation timed out";
+        case LL_IFC_ERROR_INCORRECT_MESSAGE_SIZE:    return "The message size from the device was incorrect";
+        case LL_IFC_ERROR_NO_NETWORK:                return "No network was available";
+
+        default:                                     return "unknown error";
+    }
 }
 
 int32_t ll_firmware_type_get(ll_firmware_type_t *t)
@@ -108,6 +160,19 @@ int32_t ll_hardware_type_get(ll_hardware_type_t *t)
         *t = (ll_hardware_type_t) type;
     }
     return ret;
+}
+
+const char * ll_hardware_type_string(ll_hardware_type_t t)
+{
+    switch(t)
+    {
+        case UNAVAILABLE: return "unavailable";
+        case LLRLP20_V2:  return "LLRLP20 v2";
+        case LLRXR26_V2:  return "LLRXR26 v2";
+        case LLRLP20_V3:  return "LLRLP20 v3";
+        case LLRXR26_V3:  return "LLRXR26 v3";
+        default:          return "unknown";
+    }
 }
 
 int32_t ll_interface_version_get(ll_version_t *version)
@@ -148,131 +213,12 @@ int32_t ll_version_get(ll_version_t *version)
 
 int32_t ll_sleep_block(void)
 {
-	return hal_read_write(OP_SLEEP_BLOCK, (uint8_t*) "1", 1, NULL, 0);
+    return hal_read_write(OP_SLEEP_BLOCK, (uint8_t*) "1", 1, NULL, 0);
 }
 
 int32_t ll_sleep_unblock(void)
 {
-	return hal_read_write(OP_SLEEP_BLOCK, (uint8_t*) "0", 1, NULL, 0);
-}
-
-
-int32_t ll_receive_mode_set(uint8_t rx_mode)
-{
-    // TODO: Should these use the enum?
-    if (rx_mode >= NUM_DOWNLINK_MODES)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_RX_MODE_SET, &rx_mode, 1, NULL, 0);
-}
-
-int32_t ll_receive_mode_get(uint8_t *rx_mode)
-{
-    if (rx_mode == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_RX_MODE_GET, NULL, 0, rx_mode, sizeof(*rx_mode));
-}
-
-int32_t ll_mailbox_request(void)
-{
-    return hal_read_write(OP_MAILBOX_REQUEST, NULL, 0, NULL, 0);
-}
-
-int32_t ll_qos_request(uint8_t qos)
-{
-    if (qos > 15)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_QOS_REQUEST, &qos, 1, NULL, 0);
-}
-
-int32_t ll_qos_get(uint8_t *qos)
-{
-    if (qos == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_QOS_GET, NULL, 0, qos, sizeof(*qos));
-}
-
-int32_t ll_app_token_set(const uint8_t *app_token, uint8_t len)
-{
-    if (app_token == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    if(10 != len)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_APP_TOKEN_SET, (uint8_t*) app_token, 10, NULL, 0);
-}
-
-int32_t ll_app_token_get(uint8_t *app_token)
-{
-    if (app_token == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_APP_TOKEN_GET, NULL, 0, app_token, 10);
-}
-
-int32_t ll_app_reg_get(uint8_t *is_registered)
-{
-    if (is_registered == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_APP_TOKEN_REG_GET, NULL, 0, is_registered, 1);
-}
-
-int32_t ll_encryption_key_exchange_request(void)
-{
-    return hal_read_write(OP_CRYPTO_KEY_XCHG_REQ, NULL, 0, NULL, 0);
-}
-
-int32_t ll_get_state(enum ll_state *state, enum ll_tx_state *tx_state, enum ll_rx_state *rx_state)
-{
-    int32_t ret = LL_IFC_ACK;
-
-    if (NULL != state)
-    {
-        uint8_t u8_state;
-        ret = hal_read_write(OP_STATE, NULL, 0, &u8_state, 1);
-        if (LL_IFC_ACK > ret)
-        {
-            return ret;
-        }
-        *state = (enum ll_state)(int8_t)u8_state;
-    }
-
-    if (NULL != tx_state)
-    {
-        uint8_t u8_tx_state;
-        ret = hal_read_write(OP_TX_STATE, NULL, 0, &u8_tx_state, 1);
-        if (LL_IFC_ACK > ret)
-        {
-            return ret;
-        }
-        *tx_state = (enum ll_tx_state)(int8_t)u8_tx_state;
-    }
-
-    if (NULL != rx_state)
-    {
-        uint8_t u8_rx_state;
-        ret = hal_read_write(OP_RX_STATE, NULL, 0, &u8_rx_state, 1);
-        if (LL_IFC_ACK > ret)
-        {
-            return ret;
-        }
-        *rx_state = (enum ll_rx_state)(int8_t)u8_rx_state;
-    }
-
-    return ret;
+    return hal_read_write(OP_SLEEP_BLOCK, (uint8_t*) "0", 1, NULL, 0);
 }
 
 int32_t ll_mac_mode_set(ll_mac_type_t mac_mode)
@@ -319,203 +265,6 @@ int32_t ll_antenna_get(uint8_t *ant)
     return hal_read_write(OP_ANTENNA_GET, NULL, 0, ant, 1);
 }
 
-int32_t ll_net_token_get(uint32_t *p_net_token)
-{
-    uint8_t buff[4];
-    if (p_net_token == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    int32_t ret = hal_read_write(OP_NET_TOKEN_GET, NULL, 0, buff, 4);
-    *p_net_token = 0;
-    *p_net_token |= (uint32_t)buff[0] << 24;
-    *p_net_token |= (uint32_t)buff[1] << 16;
-    *p_net_token |= (uint32_t)buff[2] << 8;
-    *p_net_token |= (uint32_t)buff[3];
-    return ret;
-}
-
-int32_t ll_net_token_set(uint32_t net_token)
-{
-    if(net_token != 0xFFFFFFFF)
-    {
-        uint8_t buff[4];
-        buff[0] = (net_token >> 24) & 0xFF;
-        buff[1] = (net_token >> 16) & 0xFF;
-        buff[2] = (net_token >> 8) & 0xFF;
-        buff[3] = (net_token) & 0xFF;
-        return hal_read_write(OP_NET_TOKEN_SET, buff, 4, NULL, 0);
-    }
-    else
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-}
-
-int32_t ll_config_get(uint32_t *net_token, uint8_t app_token[APP_TOKEN_LEN],
-                      enum ll_downlink_mode *dl_mode, uint8_t *qos)
-{
-    int32_t ret;
-
-    ret = ll_net_token_get(net_token);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_app_token_get(app_token);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_receive_mode_get((uint8_t *)dl_mode);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_qos_get(qos);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    return ret;
-}
-
-int32_t ll_net_info_get(llabs_network_info_t *p_net_info)
-{
-    uint8_t buff[NET_INFO_BUFF_SIZE];
-    if (p_net_info == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    int32_t ret = hal_read_write(OP_NET_INFO_GET, NULL, 0, buff, NET_INFO_BUFF_SIZE);
-    ll_net_info_deserialize(buff, p_net_info);
-    return ret;
-}
-
-int32_t ll_stats_get(llabs_stats_t *s)
-{
-    uint8_t buff[STATS_SIZE];
-    if (s == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    int32_t ret = hal_read_write(OP_STATS_GET, NULL, 0, buff, STATS_SIZE);
-    ll_stats_deserialize(buff, s);
-    return ret;
-}
-
-int32_t ll_dl_band_cfg_get(llabs_dl_band_cfg_t *p)
-{
-    uint8_t buff[DL_BAND_CFG_SIZE];
-    if (p == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    int32_t ret = hal_read_write(OP_DL_BAND_CFG_GET, NULL, 0, buff, DL_BAND_CFG_SIZE);
-    ll_dl_band_cfg_deserialize(buff, p);
-    return ret;
-}
-
-int32_t ll_dl_band_cfg_set(const llabs_dl_band_cfg_t *p)
-{
-    uint8_t buff[DL_BAND_CFG_SIZE];
-    if (p == NULL)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    ll_dl_band_cfg_serialize(p, buff);
-    return hal_read_write(OP_DL_BAND_CFG_SET, buff, DL_BAND_CFG_SIZE, NULL, 0);
-}
-
-int32_t ll_config_set(uint32_t net_token, const uint8_t app_token[APP_TOKEN_LEN],
-                      enum ll_downlink_mode dl_mode, uint8_t qos)
-{
-    int32_t ret;
-
-    ret = ll_net_token_set(net_token);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_app_token_set(app_token, APP_TOKEN_LEN);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_receive_mode_set(dl_mode);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    ret = ll_qos_request(qos);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    return ret;
-}
-
-int32_t ll_rssi_scan_set(uint32_t u1, uint32_t u2, uint32_t u3, uint32_t u4)
-{
-    uint8_t buf[16];
-
-    memset(buf, 0, sizeof(buf));
-
-    // Little Endian
-    buf[ 0] = (u1 >> 24) & 0xFF;
-    buf[ 1] = (u1 >> 16) & 0xFF;
-    buf[ 2] = (u1 >>  8) & 0xFF;
-    buf[ 3] = (u1      ) & 0xFF;
-
-    buf[ 4] = (u2 >> 24) & 0xFF;
-    buf[ 5] = (u2 >> 16) & 0xFF;
-    buf[ 6] = (u2 >>  8) & 0xFF;
-    buf[ 7] = (u2      ) & 0xFF;
-
-    buf[ 8] = (u3 >> 24) & 0xFF;
-    buf[ 9] = (u3 >> 16) & 0xFF;
-    buf[10] = (u3 >>  8) & 0xFF;
-    buf[11] = (u3      ) & 0xFF;
-
-    buf[12] = (u4 >> 24) & 0xFF;
-    buf[13] = (u4 >> 16) & 0xFF;
-    buf[14] = (u4 >>  8) & 0xFF;
-    buf[15] = (u4      ) & 0xFF;
-
-    return hal_read_write(OP_RSSI_SET, buf, 16, NULL, 0);
-}
-
-int32_t ll_rssi_scan_get(uint8_t buf[], uint16_t len, uint8_t *bytes_received)
-{
-    int32_t rw_response;
-
-    if (buf == NULL || len <= 0 || bytes_received == NULL)
-    {
-        return 0;
-    }
-
-    rw_response = hal_read_write(OP_RSSI_GET, NULL, 0, buf, len);
-
-    if (rw_response < 0)
-    {
-        *bytes_received = 0;
-        return(-1);
-    }
-    else
-    {
-        *bytes_received = (uint8_t) (rw_response & 0xFF);
-        return(0);
-    }
-}
-
 int32_t ll_unique_id_get(uint64_t *unique_id)
 {
     uint8_t buff[8];
@@ -533,171 +282,6 @@ int32_t ll_unique_id_get(uint64_t *unique_id)
     }
 
     return ret;
-}
-
-int32_t ll_radio_params_get(uint8_t *sf, uint8_t *cr, uint8_t *bw, uint32_t *freq,
-                            uint16_t *preamble_syms, uint8_t *header_enabled, uint8_t *crc_enabled,
-                            uint8_t *iq_inverted)
-{
-    int32_t ret;
-    uint8_t buff[8];
-    ret = hal_read_write(OP_GET_RADIO_PARAMS, NULL, 0, buff, 8);
-
-    *sf = (buff[0] >> 4) + 6;
-    *cr = ((buff[0] >> 2) & 0x03) + 1;
-    *bw = buff[0] & 0x03;
-
-    *header_enabled = buff[1] & (1u << 0u);
-    *crc_enabled = buff[1] & (1u << 1u);
-    *iq_inverted = buff[1] & (1u << 2u);
-
-    *preamble_syms = ((uint16_t)buff[2] << 8) | (uint16_t)buff[3];
-
-    *freq  = (uint32_t)(buff[4] << 24);
-    *freq |= (uint32_t)(buff[5] << 16);
-    *freq |= (uint32_t)(buff[6] <<  8);
-    *freq |= (uint32_t)(buff[7]      );
-
-    return ret;
-}
-
-int32_t ll_radio_params_set(uint8_t flags, uint8_t sf, uint8_t cr, uint8_t bw, uint32_t freq,
-                            uint16_t preamble_syms, uint8_t enable_header, uint8_t enable_crc,
-                            uint8_t enable_iq_inversion)
-{
-    uint8_t buf[9];
-
-    memset(buf, 0, sizeof(buf));
-
-    buf[0] = flags;
-
-    if(flags & RADIO_PARAM_FLAGS_SF)
-    {
-        if (sf < 6 || sf > 12)
-        {
-           return LL_IFC_ERROR_INCORRECT_PARAMETER;
-        }
-        sf = sf - 6;
-        buf[1] |= ((sf&0x07) << 4);
-    }
-    if(flags & RADIO_PARAM_FLAGS_CR)
-    {
-        if (cr < 1 || cr > 4)
-        {
-            return LL_IFC_ERROR_INCORRECT_PARAMETER;
-        }
-        cr = cr - 1;
-        buf[1] |= ((cr&0x03) << 2);
-    }
-    if(flags & RADIO_PARAM_FLAGS_BW)
-    {
-        if (bw > 3)
-        {
-            return LL_IFC_ERROR_INCORRECT_PARAMETER;
-        }
-        buf[1] |= ((bw&0x03)     );
-    }
-
-    if ((flags & RADIO_PARAM_FLAGS_HEADER) && enable_header)
-    {
-        buf[2] |= (1u << 0u);
-    }
-    if ((flags & RADIO_PARAM_FLAGS_CRC) && enable_crc)
-    {
-        buf[2] |= (1u << 1u);
-    }
-    if ((flags & RADIO_PARAM_FLAGS_IQ) && enable_iq_inversion)
-    {
-        buf[2] |= (1u << 2u);
-    }
-
-    if (flags & RADIO_PARAM_FLAGS_PREAMBLE)
-    {
-        buf[3] = (preamble_syms >> 8) & 0xFF;
-        buf[4] = (preamble_syms >> 0) & 0xFF;
-    }
-
-    if(flags & RADIO_PARAM_FLAGS_FREQ)
-    {
-        buf[5] = (freq >> 24) & 0xFF;
-        buf[6] = (freq >> 16) & 0xFF;
-        buf[7] = (freq >>  8) & 0xFF;
-        buf[8] = (freq      ) & 0xFF;
-    }
-
-    return hal_read_write(OP_SET_RADIO_PARAMS, buf, 9, NULL, 0);
-}
-
-int32_t ll_bandwidth_set(uint8_t bandwidth)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_BW, 0, 0, bandwidth, 0, 0, 0, 0, 0);
-}
-
-int32_t ll_spreading_factor_set(uint8_t sf)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_SF, sf, 0, 0, 0, 0, 0, 0, 0);
-}
-
-int32_t ll_coding_rate_set(uint8_t coding_rate)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_CR, 0, coding_rate, 0, 0, 0, 0, 0, 0);
-}
-
-int32_t ll_tx_power_set(int8_t pwr)
-{
-    if (pwr < -4 || pwr > 26)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_TX_POWER_SET, (uint8_t *)&pwr, 1, NULL, 0);
-}
-
-int32_t ll_tx_power_get(int8_t *pwr)
-{
-    if (NULL == pwr)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_TX_POWER_GET, NULL, 0, (uint8_t *)pwr, 1);
-}
-
-int32_t ll_frequency_set(uint32_t freq)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_FREQ, 0, 0, 0, freq, 0, 0, 0, 0);
-}
-
-int32_t ll_preamble_syms_set(uint16_t num_syms)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_PREAMBLE, 0, 0, 0, 0, num_syms, 0, 0, 0);
-}
-
-int32_t ll_header_enabled_set(uint8_t enabled)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_HEADER, 0, 0, 0, 0, 0, enabled, 0, 0);
-}
-
-int32_t ll_crc_enabled_set(uint8_t enabled)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_CRC, 0, 0, 0, 0, 0, 0, enabled, 0);
-}
-
-int32_t ll_iq_inversion_set(uint8_t inverted)
-{
-    return ll_radio_params_set(RADIO_PARAM_FLAGS_IQ, 0, 0, 0, 0, 0, 0, 0, inverted);
-}
-
-int32_t ll_sync_word_set(uint8_t sync_word)
-{
-    return hal_read_write(OP_SYNC_WORD_SET, (uint8_t *)&sync_word, 1, NULL, 0);
-}
-
-int32_t ll_sync_word_get(uint8_t *sync_word)
-{
-    if (NULL == sync_word)
-    {
-        return LL_IFC_ERROR_INCORRECT_PARAMETER;
-    }
-    return hal_read_write(OP_SYNC_WORD_GET, NULL, 0, sync_word, 1);
 }
 
 int32_t ll_settings_store(void)
@@ -728,147 +312,6 @@ int32_t ll_reset_mcu(void)
 int32_t ll_bootloader_mode(void)
 {
     return hal_read_write(OP_TRIGGER_BOOTLOADER, NULL, 0, NULL, 0);
-}
-
-int32_t ll_echo_mode()
-{
-    return hal_read_write(OP_PKT_ECHO, NULL, 0, NULL, 0);
-}
-
-int32_t ll_packet_send(uint8_t buf[], uint16_t len)
-{
-    return ll_packet_send_queue(buf, len);
-}
-
-int32_t ll_packet_send_queue(uint8_t buf[], uint16_t len)
-{
-    if (buf == NULL || len <= 0)
-    {
-        return 0;
-    }
-
-    uint8_t cmd_response;
-
-    int32_t rw_response = hal_read_write(OP_PKT_SEND_QUEUE, buf, len, &cmd_response, 1);
-
-    if (rw_response < 0)
-    {
-        return((int8_t)rw_response);
-    }
-    else
-    {
-        return(cmd_response);
-    }
-}
-
-int32_t ll_packet_recv(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len, uint8_t *bytes_received)
-{
-    uint8_t buff[2];
-    int32_t rw_response;
-
-    if (buf == NULL || len <= 0 || bytes_received == NULL)
-    {
-        return 0;
-    }
-
-    // Make the uint16_t value big-endian
-    buff[0] = (num_timeout_symbols >> 8) & 0xFF;
-    buff[1] = (num_timeout_symbols >> 0) & 0xFF;
-
-    rw_response = hal_read_write(OP_PKT_RECV, buff, sizeof(num_timeout_symbols), buf, len);
-
-    if (rw_response < 0)
-    {
-        *bytes_received = 0;
-        return(-1);
-    }
-    else
-    {
-        *bytes_received = (uint8_t) (rw_response & 0xFF);
-        return(0);
-    }
-}
-
-int32_t ll_retrieve_message(uint8_t *buf, uint8_t *size, int16_t *rssi, uint8_t *snr)
-{
-    uint8_t rx_size;
-    int32_t ret = ll_packet_recv_with_rssi(0, buf, MAX_RX_MSG_LEN + 3, &rx_size);
-    if (LL_IFC_ACK > ret)
-    {
-        return ret;
-    }
-
-    // Size is required
-    *size = rx_size - 3;
-
-    // Optional RSSI
-    if(NULL != rssi)
-    {
-        *rssi = 0;
-        *rssi = buf[0] + ((uint16_t)buf[1] << 8);
-    }
-
-    // Optional RSSI
-    if(NULL != snr)
-    {
-        *snr = buf[2];
-    }
-
-    //get rid of snr and rssi in buffer
-    memmove(buf, buf + 3, *size);
-
-    return ret;
-}
-
-int32_t ll_packet_recv_with_rssi(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len, uint8_t *bytes_received)
-{
-    uint8_t buff[2];
-    int32_t rw_response;
-
-    if (buf == NULL || len <= 0 || bytes_received == NULL)
-    {
-        return 0;
-    }
-
-    // Make the uint16_t value big-endian
-    buff[0] = (num_timeout_symbols >> 8) & 0xFF;
-    buff[1] = (num_timeout_symbols >> 0) & 0xFF;
-
-    rw_response = hal_read_write(OP_PKT_RECV_RSSI, buff, sizeof(num_timeout_symbols), buf, len);
-
-    if (rw_response < 0)
-    {
-        *bytes_received = 0;
-        return(-1);
-    }
-    else
-    {
-        *bytes_received = (uint8_t) (rw_response & 0xFF);
-        return(0);
-    }
-}
-
-int32_t ll_packet_recv_cont(uint8_t buf[], uint16_t len, uint8_t *bytes_received)
-{
-    int32_t rw_response;
-
-    if (buf == NULL || len == 0 || bytes_received == NULL)
-    {
-        return 0;
-    }
-
-    rw_response = hal_read_write(OP_PKT_RECV_CONT, NULL, 0, buf, len);
-
-    if (rw_response < 0)
-    {
-        *bytes_received = 0;
-        return(-1);
-    }
-    else
-    {
-        *bytes_received = (uint8_t) (rw_response & 0xFF);
-        return(0);
-    }
 }
 
 /**
@@ -903,31 +346,120 @@ int32_t ll_irq_flags(uint32_t flags_to_clear, uint32_t *flags)
     return(rw_response);
 }
 
-int32_t ll_packet_send_ack(uint8_t buf[], uint16_t len)
+int32_t ll_timestamp_get(uint32_t * timestamp_us)
 {
-    if (buf == NULL || len <= 0)
+    return ll_timestamp_set(LL_TIMESTAMP_NO_OPERATION, 0, timestamp_us);
+}
+
+int32_t ll_timestamp_set(ll_timestamp_operation_t operation, uint32_t timestamp_us, uint32_t * actual_timestamp_us)
+{
+    uint8_t in_buf[5];
+    uint8_t * b_in = in_buf;
+    uint8_t out_buf[4] = {0,0,0,0};
+
+    if ((operation < 0) || (operation > LL_TIMESTAMP_SYNC))
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
-    return hal_read_write(OP_PKT_SEND_ACK, buf, len, NULL, 0);
-}
+    write_uint8((uint8_t) operation, &b_in);
+    write_uint32(timestamp_us, &b_in);
 
-int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len)
-{
-    if (buf == NULL || len <= 0)
+    int32_t rw_response = hal_read_write_exact(OP_TIMESTAMP, in_buf, sizeof(in_buf), out_buf, sizeof(out_buf));
+    if (rw_response >= 0)
     {
-        return 0;
+        uint8_t const * b_out = out_buf;
+        *actual_timestamp_us = read_uint32(&b_out);
+        rw_response = 0;
     }
 
-    return hal_read_write(OP_PKT_SEND_UNACK, buf, len, NULL, 0);
+    return rw_response;
 }
 
-int32_t ll_transmit_cw(void)
+
+int32_t ll_reset_state( void )
 {
-    return hal_read_write(OP_TX_CW, NULL, 0, NULL, 0);
+    message_num = 0;
+    return 0;
 }
 
+
+/*
+ * Command/response payload formats
+ *
+ * OP_LORAWAN_ACTIVATE
+ *
+ * command:
+ *  - subtype (1 byte): ll_lorawan_activation_e
+ *  - remaining payload...
+ *
+ * For LL_LORAWAN_ACTIVATION_OVER_THE_AIR:
+ *  - network_type (1 byte)
+ *  - device_class (1 byte)
+ *  - devEui (8 bytes)
+ *  - appEui (8 bytes)
+ *  - appKey (16 bytes)
+ *
+ * For LL_LORAWAN_ACTIVATION_PERSONALIZATION:
+ *  - network_type (1 byte)
+ *  - device_class (1 byte)
+ *  - netID (4 bytes)
+ *  - devAddr (4 bytes)
+ *  - netSKey (16 bytes)
+ *  - appSKey (16 bytes)
+ *
+ * For LL_LORAWAN_ACTIVATION_QUERY, no additional payload
+ *
+ * response:
+ *  - status (1 byte): ll_lorawan_activation_status_e
+ *
+ * OP_LORAWAN_PARAM
+ *
+ * command:
+ *  - data_type (1 byte): 0x03 = i32
+ *  - parameter_id (1 byte)
+ *  - data_size (1 byte): in bytes, 0 for get operation
+ *  - data (data_size bytes): big endian
+ *
+ * response:
+ *  - data_type (1 byte)
+ *  - parameter_id (1 byte)
+ *  - data_size (1 byte)
+ *  - data (data_size bytes): big endian
+ *
+ *
+ * OP_LORAWAN_PKT_SEND
+ *
+ * command:
+ *  - flags (1 byte)
+ *  - fPort (1 byte)
+ *  - retries (1 byte)
+ *  - data_size (1 byte)
+ *  - data (data_size bytes)
+ *
+ * response: empty (just ACK/status bit used)
+ *
+ *
+ * OP_LORAWAN_PKT_RECEIVE (poll for an already received packet)
+ *
+ * command has no payload
+ *
+ * response:
+ *  - flags (1 byte):
+ *    - rx: a receive packet with payload was received
+ *    - rx_multicast: the received packet was multicast
+ *    - ack: an acknowledgment was received
+ *    - link_check: link check data was received
+ *  - TxNbRetries (1 byte): only valid if tx
+ *  - DemodMargin (1 byte): only valid if link_check is set
+ *  - NbGateways (1 byte): only valid if link_check is set
+ *  - RxRssi (1 byte): 0xff = +20 dB
+ *  - RxSnr (1 byte)
+ *  - RxPort (1 byte), only valid if rx
+ *  - bytes_received (1 byte), only valid if rx
+ *  - data (bytes_received bytes), only valid if rx
+ *
+ */
 
 /**
  * @brief
@@ -1045,14 +577,14 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
         if((clock()- t) > max_clock)
         {
             len = 0;
-            return (-106);
+            return LL_IFC_ERROR_HOST_INTERFACE_TIMEOUT;
         }
     } while(curr_byte != FRAME_START);
 
     if (ret < 0)
     {
         /* transport_read failed - return an error */
-        return (-108);
+        return LL_IFC_ERROR_START_OF_FRAME;
     }
 
     header_idx = 0;
@@ -1062,7 +594,7 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
     if (ret < 0)
     {
         /* transport_read failed - return an error */
-        return (-109);
+        return LL_IFC_ERROR_HEADER;
     }
 
     uint16_t len_from_header = (uint16_t)header_buf[5] + ((uint16_t)header_buf[4] << 8);
@@ -1070,12 +602,12 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
     if (header_buf[1] != op)
     {
         // Command Byte should match what was sent
-        ret_value = -105;
+        ret_value = LL_IFC_ERROR_COMMAND_MISMATCH;
     }
     if (header_buf[2] != message_num)
     {
         // Message Number should match
-        ret_value = -103;
+        ret_value = LL_IFC_ERROR_MESSAGE_NUMBER_MISMATCH;
     }
     if (header_buf[3] != 0x00)
     {
@@ -1094,7 +626,7 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
             ret = transport_read(&temp_byte, 1);
         }
         while (ret == 0);
-        return -107;
+        return LL_IFC_ERROR_BUFFER_TOO_SMALL;
     }
     else if (len_from_header < len)
     {
@@ -1117,7 +649,6 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
         {
             transport_read(buf, len);
         }
-
     }
 
     // Finally, make sure the checksum matches
@@ -1126,7 +657,7 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
     computed_checksum = compute_checksum(header_buf, RESP_HEADER_LEN, buf, len);
     if (((uint16_t)checksum_buff[0] << 8) + checksum_buff[1] != computed_checksum)
     {
-        return(-104);
+        return LL_IFC_ERROR_CHECKSUM_MISMATCH;
     }
 
     if (ret_value == 0)

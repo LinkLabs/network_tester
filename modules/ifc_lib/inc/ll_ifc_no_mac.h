@@ -351,6 +351,33 @@ int32_t ll_packet_send(uint8_t buf[], uint16_t len);
 int32_t ll_packet_send_queue(uint8_t buf[], uint16_t len);
 
 /**
+ * @brief
+ *   Cancel any active receive window and queue a packet for transmission
+ *   at a specified time.
+ *
+ * @details
+ *   When the packet finishes transmission the module will return to the
+ *   idle state.  Also see ll_packet_send_queue().
+ *
+ * @param[in] timestamp_us
+ *   The timestamp in microseconds when the next packet will be
+ *   transmitted.  Use ll_timestamp_get() and ll_timestamp_set()
+ *   to determine the desired timestamp.
+ *
+ * @param[in] buf
+ *   byte array containing the data payload
+ *
+ * @param[in] len
+ *   length of the input buffer in bytes
+ *
+ * @return
+ *   int32_t 1 if packet queued
+ *   int32_t 0 if queue is full
+ *   negative if an error occurred
+ */
+int32_t ll_packet_send_timestamp(uint32_t timestamp_us, uint8_t buf[], uint16_t len);
+
+/**
  * Commands the module to transmit a CW at the current frequency and power.
  */
 int32_t ll_transmit_cw(void);

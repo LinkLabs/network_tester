@@ -180,6 +180,8 @@ $(MODULE_DIR)/efm_utils/src/efm_temperature.c \
 $(MODULE_DIR)/efm_utils/src/gpiointerrupt.c \
 $(MODULE_DIR)/efm_utils/src/sleep.c \
 $(MODULE_DIR)/ifc_lib/src/ll_ifc.c \
+$(MODULE_DIR)/ifc_lib/src/ll_ifc_no_mac.c \
+$(MODULE_DIR)/ifc_lib/src/ll_ifc_symphony.c \
 $(MODULE_DIR)/ifc_lib/src/ifc_struct_defs.c \
 $(MODULE_DIR)/FreeRTOS_v8_2_0/src/croutine.c \
 $(MODULE_DIR)/FreeRTOS_v8_2_0/src/list.c \
@@ -267,7 +269,7 @@ ifneq (clean,$(findstring clean, $(MAKECMDGOALS)))
 endif
 
 ctags:
-	ctags -R $(C_PATHS) $(S_PATHS) $(CTAGS_INCLUDEPATHS)
+	ctags --c-kinds=+p -R $(C_PATHS) $(S_PATHS) $(CTAGS_INCLUDEPATHS)
 
 download:
 	@echo "Downloading and verify $(EXE_DIR)/$(PROJECTNAME).bin ..."

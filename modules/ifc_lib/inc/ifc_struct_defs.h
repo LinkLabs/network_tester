@@ -7,6 +7,7 @@
 #define DL_BAND_CFG_SIZE (3 * 4 + 2)
 #define STATS_SIZE (10 * 4)
 
+#ifndef PACKED
 #ifdef __GNU_C__
     #define PACKED __attribute ((__packed__))
 #else
@@ -14,6 +15,23 @@
         #define PACKED
     #endif
 #endif
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * @addtogroup Link_Labs_Interface_Library
+ * @{
+ */
+
+/**
+ * @addtogroup Module_Interface
+ * @brief
+ * @{
+ */
+
 
 typedef enum
 {
@@ -67,5 +85,125 @@ void ll_dl_band_cfg_deserialize(const uint8_t buff[DL_BAND_CFG_SIZE], llabs_dl_b
 uint16_t ll_dl_band_cfg_serialize(const llabs_dl_band_cfg_t * dl_cfg, uint8_t buff[DL_BAND_CFG_SIZE]);
 void ll_stats_deserialize(const uint8_t buff[STATS_SIZE], llabs_stats_t * stats);
 uint16_t ll_stats_serialize(const llabs_stats_t * stats, uint8_t buff[STATS_SIZE]);
+
+
+/** @} (end addtogroup Module_Interface) */
+
+/**
+ * @addtogroup ifc_format
+ * @{
+ */
+
+/**
+ * @brief
+ *   Read a u8 from the buffer [not memory safe].
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value read.
+ *
+ * @return
+ *   The u8 read from the buffer.
+ */
+uint8_t read_uint8(const uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Read a u16 from the buffer [not memory safe].
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value read.
+ *
+ * @return
+ *   The u16 read from the buffer.
+ */
+uint16_t read_uint16(const uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Read a u32 from the buffer [not memory safe].
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value read.
+ *
+ * @return
+ *   The u32 read from the buffer.
+ */
+uint32_t read_uint32(const uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Read a u64 from the buffer [not memory safe].
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value read.
+ *
+ * @return
+ *   The u64 read from the buffer.
+ */
+uint64_t read_uint64(const uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Write a u8 to the buffer [not memory safe].
+ *
+ * @param[in] x
+ *   The u8 to write.
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value written.
+ */
+void write_uint8(uint8_t x, uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Write a u16 to the buffer [not memory safe].
+ *
+ * @param[in] x
+ *   The u16 to write.
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value written.
+ */
+void write_uint16(uint16_t x, uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Write a u32 to the buffer [not memory safe].
+ *
+ * @param[in] x
+ *   The u32 to write.
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value written.
+ */
+void write_uint32(uint32_t x, uint8_t ** buffer);
+
+/**
+ * @brief
+ *   Write a u64 to the buffer [not memory safe].
+ *
+ * @param[in] x
+ *   The u64 to write.
+ *
+ * @param[inout] buffer
+ *   The pointer to the big-endian buffer.  The pointer is
+ *   incremented to the next location past the value written.
+ */
+void write_uint64(uint64_t x, uint8_t ** buffer);
+
+/** @} (end addtogroup ifc_format) */
+
+/** @} (end addtogroup Link_Labs_Interface_Library) */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

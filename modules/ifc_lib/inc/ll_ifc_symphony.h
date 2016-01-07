@@ -2,8 +2,6 @@
 #define __LL_IFC_SYMPHONY_H
 
 #include <stdint.h>
-
-#include "ll_ifc_consts.h"
 #include "ll_ifc.h"
 
 #ifdef __cplusplus
@@ -252,6 +250,7 @@ int32_t ll_packet_send_ack(uint8_t buf[], uint16_t len);
  *   negative if an error
  */
 int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len);
+
 
 /**
  * @brief

@@ -3,6 +3,17 @@
 
 #include <stdint.h>
 
+/**
+ * @addtogroup Link_Labs_Interface_Library
+ * @{
+ */
+
+/**
+ * @addtogroup Module_Interface
+ * @brief
+ * @{
+ */
+
 #define IFC_VERSION_MAJOR (0)
 #define IFC_VERSION_MINOR (3)
 #define IFC_VERSION_TAG (1)
@@ -65,6 +76,15 @@ typedef enum
     OP_APP_TOKEN_REG_GET     = 126, // 0x7E
     OP_CRYPTO_KEY_XCHG_REQ   = 128, // 0x80
     OP_MAILBOX_REQUEST       = 129, // 0x81
+
+    OP_TIMESTAMP             = 131, // 0x83  reserved, not fully implemented
+    OP_PKT_SEND_TIMESTAMP    = 132, // 0x84  reserved, not fully implemented
+
+    OP_LORAWAN_ACTIVATE         = 133, // 0x85
+    OP_LORAWAN_PARAM            = 134, // 0x86
+    OP_LORAWAN_PKT_SEND         = 135, // 0x87
+    OP_LORAWAN_PKT_RECEIVE      = 136, // 0x88
+
     OP_HARDWARE_TYPE = 254,         // 0xFE
     OP_FIRMWARE_TYPE = 255          // 0xFF
 } opcode_t;
@@ -77,13 +97,12 @@ typedef enum
 typedef enum
 {
     LORA_NO_MAC = 0,
-    LORAWAN_EU,
-    LORAWAN_FCC,
+    LORAWAN,
+    LORAWAN_HYBRID,
     SYMPHONY_LINK,
     NUM_MACS,
     MAC_INVALID = 255,
 } ll_mac_type_t;
-
 
 /**
  * version struct
@@ -154,11 +173,27 @@ typedef enum
 #define LL_IFC_NACK_PAYLOAD_LEN_EXCEEDED    (8)   // Payload length is greater than the max supported length
 #define LL_IFC_NACK_NOT_IN_MAILBOX_MODE     (9)   // Module must be in DOWNLINK_MAILBOX mode
 #define LL_IFC_NACK_OTHER                   (99)
+/* When adding a new value, update ll_return_code_name() and ll_return_code_description() */
+
 
 /** Error Codes */
 /* Note: Error codes -1 to -99 map to NACK codes received from the radio */
-#define LL_IFC_ERROR_INCORRECT_PARAMETER    (-101)
-// TODO: Define more error codes
+typedef enum ll_ifc_error_codes_e {
+    LL_IFC_ERROR_INCORRECT_PARAMETER        = -101, //< The parameter value was invalid.
+    LL_IFC_ERROR_INCORRECT_RESPONSE_LENGTH  = -102, //< Module response was not the expected size.
+    LL_IFC_ERROR_MESSAGE_NUMBER_MISMATCH    = -103, //< Message number in response doesn't match expected
+    LL_IFC_ERROR_CHECKSUM_MISMATCH          = -104, //< Checksum mismatch
+    LL_IFC_ERROR_COMMAND_MISMATCH           = -105, //< Command mismatch (responding to a different command)
+    LL_IFC_ERROR_HOST_INTERFACE_TIMEOUT     = -106, //< Timed out waiting for Rx bytes from interface
+    LL_IFC_ERROR_BUFFER_TOO_SMALL           = -107, //< Response larger than provided output buffer
+    LL_IFC_ERROR_START_OF_FRAME             = -108, //< transport_read failed getting FRAME_START
+    LL_IFC_ERROR_HEADER                     = -109, //< transport_read failed getting header
+    LL_IFC_ERROR_TIMEOUT                    = -110, //< The operation timed out.
+    LL_IFC_ERROR_INCORRECT_MESSAGE_SIZE     = -111, //< The message size from the device was incorrect.
+    LL_IFC_ERROR_NO_NETWORK                 = -112, //< No network was available.
+    /* When adding a new value, update ll_return_code_name() and ll_return_code_description() */
+} ll_ifc_error_codes_t;
+
 
 /** Bit Definitions for OP_SET_RADIO_PARAMS */
 #define RADIO_PARAM_FLAGS_SF        (1u<<0u)
@@ -188,5 +223,296 @@ typedef enum
 #define IRQ_FLAGS_FIRMWARE_REQ                (0x00800000UL)  // Set when we want to request the firmware data of the host controller
 #define IRQ_FLAGS_ASSERT                      (0x80000000UL)  // Set every time we transition from the connected->disconnected state
 
+/**
+ * @brief
+ *   The operations for ll_timestamp_set().
+ */
+typedef enum ll_timestamp_operation_e {
+    /**
+     * @brief
+     *   No set operation.
+     *
+     * @details
+     *   Just get the current timestamp.
+     */
+    LL_TIMESTAMP_NO_OPERATION,
+
+    /**
+     * @brief
+     *   Directly set the timestamp from the provided value.
+     *
+     * @details
+     *   The value is not applied until the command is processed by the
+     *   module, and it does not account for transmission delay.
+     */
+    LL_TIMESTAMP_SET_IMMEDIATE,
+
+    /**
+     * @brief
+     *   Synchronize the timestamp using the provided value which
+     *   corresponds to the most recent event.
+     *
+     * @details
+     *   Use this mechanism when the host directly controls the trigger
+     *   event received by both the reference time source and the module.
+     *   This mechanism guarantees the module that the reference value
+     *   aligns to the module's timestamp value when the most recent
+     *   trigger event occurred.
+     */
+    LL_TIMESTAMP_SYNC_IMMEDIATE,
+
+    /**
+     * @brief
+     *   Intelligently synchronize the timestamp using the provided value
+     *   accounting for possible mismatched trigger events.
+     *
+     * @details
+     *   Use this mechanism when the host does not control the trigger
+     *   event.  When the trigger event is free-running such as with a
+     *   GPS pulse-per-seconds (PPS) output, the reference value may
+     *   be one event behind the module's value.  This mechanism allows
+     *   the module to detect and account for this variability.  To
+     *   correctly update the module's timestamp using this mechanism:
+     *
+     *   1. Read the reference timestamp.
+     *   2. Call ll_timestamp_set()
+     *   3. Read the reference timestamp.
+     *   4. Call ll_timestamp_set()
+     */
+    LL_TIMESTAMP_SYNC
+} ll_timestamp_operation_t;
+
+/** @} (end addtogroup Module_Interface) */
+
+
+/* ------------------ LoRaWAN ------------------------------------------ */
+
+/**
+ * @addtogroup LoRaWAN_Interface
+ * @{
+ */
+
+/**
+ * @brief
+ *   The LoRaWAN network type designation.
+ */
+typedef enum ll_lorawan_network_type_e {
+
+    /** The LoRaWAN network is public (default). */
+    LL_LORAWAN_PUBLIC = 0,
+
+    /** The LoRaWAN network is private. */
+    LL_LORAWAN_PRIVATE = 1
+} ll_lorawan_network_type_t;
+
+
+/**
+ * @brief
+ *   The LoRaWAN network activation subcommand.
+ */
+typedef enum ll_lorawan_activation_e {
+    /**
+     * @brief
+     *   Perform over-the-air activation.
+     */
+    LL_LORAWAN_ACTIVATION_OVER_THE_AIR = 0,
+
+    /**
+     * @brief
+     *   Perform activation using predefined network information.
+     */
+    LL_LORAWAN_ACTIVATION_PERSONALIZATION = 1,
+
+    /**
+     * @brief
+     *   Query the current activation status.
+     */
+    LL_LORAWAN_ACTIVATION_QUERY = 2
+} ll_lorawan_activation_t;
+
+/**
+ * @brief
+ *   The LoRaWAN device class.
+ *
+ * @details
+ *   The device class determines how the device communicates with the
+ *   network.  The device class selection can drastically affect
+ *   power consumption and communication latencies.  See the LoRaWAN
+ *   specification for details.
+ */
+typedef enum ll_lorawan_device_class_e {
+    /**
+     * @brief
+     *   Class A
+     *
+     * @details
+     *   Class A devices consume the lowest power but have the highest
+     *   amount of latency.  The gateway can only communicate with the
+     *   device after the device transmits a packet.  The gateway cannot
+     *   initiate communications to the device.
+     */
+    LL_LORAWAN_CLASS_A = 0,
+
+    /**
+     * @brief
+     *   Class B
+     *
+     * @details
+     *   Class B devices consume slightly higher power but allow for the
+     *   gateway to initiate communication at fixed intervals.  The
+     *   gateway implements a beacon and can provide predictable service
+     *   intervals, unlike class A.  The drawback is slightly higher power
+     *   consumption compared to class A.
+     */
+    LL_LORAWAN_CLASS_B = 1,
+
+    /**
+     * @brief
+     *   Class C
+     *
+     * @details
+     *   Class C devices are always listening and can receive packets
+     *   from the gateway at any time.  The drawback is significantly
+     *   higher power consumption that is usually not compatible for
+     *   non-rechargable battery-powered devices.
+     */
+    LL_LORAWAN_CLASS_C = 2,
+} ll_lorawan_device_class_t;
+
+/**
+ * @brief
+ *   The activation status.
+ */
+typedef enum ll_lorawan_activation_status_e
+{
+    LL_LORAWAN_ACTIVATION_STATUS_COMPLETED = 0,
+    LL_LORAWAN_ACTIVATION_STATUS_PENDING = 1,
+    LL_LORAWAN_ACTIVATION_STATUS_FAILED = 2,
+} ll_lorawan_activation_status_t;
+
+/**
+ * @brief
+ *   The configurable LoRaWAN parameters.
+ */
+enum ll_lorawan_param_e {
+    /**
+     * @brief
+     *   When zero, use only the default rate for a channel.  When
+     *   non-zero, enable adaptive rate.
+     */
+    LL_LORAWAN_PARAM_ADAPTIVE_DATA_RATE_ENABLED,
+
+    /**
+     * @brief
+     *   The current ll_lorawan_activation_status_t (read only).
+     *
+     * @details
+     *   Equivalent to OP_LORAWAN_ACTIVATE with LL_LORAWAN_ACTIVATION_QUERY.
+     */
+    LL_LORAWAN_PARAM_NETWORK_ACTIVATION_STATUS,
+
+    /**
+     * @brief
+     *   The network type as set during join (read only).
+     */
+    LL_LORAWAN_PARAM_NETWORK_TYPE,
+
+    /**
+     * @brief
+     *   The device class as set during join (read only).
+     */
+    LL_LORAWAN_PARAM_DEVICE_CLASS,
+
+    /**
+     * @brief
+     *   The device's uplink counter (read only).
+     */
+    LL_LORAWAN_PARAM_UPLINK_COUNTER,
+
+    /**
+     * @brief
+     *   The device's downlink counter (read only).
+     */
+    LL_LORAWAN_PARAM_DOWNLINK_COUNTER,
+};
+
+/**
+ * @brief
+ *   The option flags for sending packets.
+ */
+typedef enum ll_lorawan_send_flags_e {
+    /**
+     * @brief
+     *   Check the link quality to the gateway.
+     */
+    LL_LORAWAN_SEND_LINK_CHECK = 1,
+
+    /**
+     * @brief
+     *   Flag set internally to indicate confirmed transmission.
+     */
+    LL_LORAWAN_SEND_CONFIRMED = 0x80,
+} ll_lorawan_send_flags_t;
+
+/**
+ * @brief
+ *   The option flags for receiving packets.
+ */
+typedef enum ll_lorawan_receive_flags_e {
+
+    /**
+     * @brief
+     *   The receive metadata contains link check information.
+     */
+    LL_LORAWAN_RECEIVE_LINK_CHECK = (1 << 0),
+
+    /**
+     * @brief
+     *   The receive returned a packet.
+     */
+    LL_LORAWAN_RECEIVE_PACKET = (1 << 1),
+
+    /**
+     * @brief
+     *   The receive returned a packet that was multicast.
+     *
+     * @details
+     *   LL_LORAWAN_RECEIVE_PACKET will also be set.
+     */
+    LL_LORAWAN_RECEIVE_PACKET_MULTICAST = (1 << 2),
+
+    /**
+     * @brief
+     *   The receive indicated that the gateway acknowledge a sent packet.
+     */
+    LL_LORAWAN_RECEIVE_ACK = (1 << 3),
+} ll_lorawan_receive_flags_t;
+
+/**
+ * @brief
+ *   Convert signed integer RSSI to the packet value
+ *
+ * @param[in] x
+ *   The input RSSI.
+ *
+ * @return
+ *   The uint8_t representation of x.
+ */
+#define LL_LORAWAN_RSSI_TO_PKT(x) ((uint8_t) ((x) + 255 - 20))
+
+/**
+ * @brief
+ *   Convert the uint8_t RSSI packet value to the signed integer value.
+ *
+ * @param[in] x
+ *   The RSSI packet format representation.
+ *
+ * @return
+ *   The actual int16_t RSSI.
+ */
+#define LL_LORAWAN_RSSI_FROM_PKT(x) ((int16_t) (x) + 20 - 255)
+
+/** @} (end addtogroup LoRaWAN_Interface) */
+/** @} (end addtogroup Link_Labs_Interface_Library) */
 
 #endif /* __LL_IFC_CONSTS_H */
