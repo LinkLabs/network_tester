@@ -25,20 +25,18 @@ int8_t bsp_io_init(void)
     GPIO_PinModeSet(gpioPortF, 5, gpioModeInputPull, 1); //TODO set to pull UP not down?
 
     // Check Level
-    uint8_t level = GPIO_PinInGet(gpioPortF, 5);
-    if(1 == level)
+    switch ((uint8_t) GPIO_PinInGet(gpioPortF, 5))
     {
-        s_hw_rev = HW_REV3;
-    }
-    else if(0 == level)
-    {
-        s_hw_rev = HW_REV4;
-    }
-    else
-    {
-        s_hw_rev = HW_REV_UNKNOWN;
-        EFM_ASSERT(false);
-        return EXIT_FAILURE;
+        case 0:
+            s_hw_rev = HW_REV3;
+            break;
+        case 1:
+            s_hw_rev = HW_REV4;
+            break;
+        default:
+            s_hw_rev = HW_REV_UNKNOWN;
+            EFM_ASSERT(false);
+            return EXIT_FAILURE;
     }
 
     // Set pin to HI-Z

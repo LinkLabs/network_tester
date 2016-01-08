@@ -29,7 +29,7 @@ LST_DIR = lst
 # DO NOT add trailing whitespace chars, they do matter !
 #WINDOWSCS  ?= GNU Tools ARM Embedded\4.7 2012q4
 WINDOWSCS  ?= GNU Tools ARM Embedded\4.8 2014q3
-LINUXCS    ?= /opt/gcc-arm-none-eabi-4_8-2014q3
+LINUXCS    ?= /opt/gcc-arm-none-eabi-5_2-2015q4
 
 RMDIRS     := rm -rf
 RMFILES    := rm -rf
