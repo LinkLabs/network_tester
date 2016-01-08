@@ -28,10 +28,10 @@ int8_t bsp_io_init(void)
     switch ((uint8_t) GPIO_PinInGet(gpioPortF, 5))
     {
         case 0:
-            s_hw_rev = HW_REV3;
+            s_hw_rev = HW_REV4;
             break;
         case 1:
-            s_hw_rev = HW_REV4;
+            s_hw_rev = HW_REV3;
             break;
         default:
             s_hw_rev = HW_REV_UNKNOWN;
