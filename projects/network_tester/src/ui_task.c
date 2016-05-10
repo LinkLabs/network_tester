@@ -57,6 +57,7 @@
 #define CURSOR_LINE_7                   6
 #define CURSOR_LINE_8                   7
 #define CURSOR_LINE_9                   8
+#define CURSOR_LINE_10                  9
 
 #define RSSI_METER_MIN                  130     // absolute val of min RSSI meter value
 #define RSSI_METER_STEP                 10
@@ -102,7 +103,8 @@ const char main_menu_text[][LCD_COLUMNS] = {" GPS Test           ",
                                             " Network Diagnostics",
                                             " UART Pass-Through  ",
                                             " Drive Test Mode    ",
-                                            " Uplink Ack Mode    "};
+                                            " Uplink Ack Mode    ",
+                                            " Set Network Token  "};
 
 const char gps_menu_title[LCD_COLUMNS] = "GW:                 ";
 const char gps_menu_text[][LCD_COLUMNS] = {" Mode: On Demand    ",
@@ -138,6 +140,8 @@ const char ack_mode_diag_menu_title[LCD_COLUMNS] = "Uplink Ack Mode     ";
 const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
+const char network_token_menu_title[LCD_COLUMNS] = "Network Token       ";
+const char network_token_menu_text[][LCD_COLUMNS] = {" Toggle"};
 
 // menu options
 // GPS Test Options
@@ -150,7 +154,7 @@ const char sensor_menu_modes[SENSOR_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On 
 const uint32_t sensor_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
 
 
-const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 8, 9},
+const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {gps_menu_title, gps_menu_text, 0, 1, 3},
                              {sensor_menu_title, sensor_menu_text, 0, 1, 3},
                              {downlink_menu_title, downlink_menu_text, 0, 1, 1},
@@ -160,6 +164,7 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 8, 9},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
+                             {network_token_menu_title, network_token_menu_title, 0, 1, 12},
                              };
 
 /*********************************************************************/
@@ -289,6 +294,7 @@ static void ui_increment_menu_position(void)
         case MAIN_MENU:
         case GPS_MENU:
         case SENSOR_MODE_MENU:
+        case NETWORK_TOKEN_MENU:
         default:
             // Increment cursor, load new screen (if necessary)
             screen[(menu_pos%3)+1][0] = ' ';
@@ -512,6 +518,7 @@ static void ui_load_menu(void)
 
     switch(active_menu)
     {
+        case NETWORK_TOKEN_MENU:
         case MAIN_MENU:
             ui_print_mac_address_string(screen[0]);
             menu_pos_floor = (menu_pos/3) * 3;
@@ -747,6 +754,11 @@ static void ui_menu_select_ack_mode_menu(void)
     xTaskNotifyGive(s_screen_task_handle);
 }
 
+static void ui_menu_select_net_token_toggle(void)
+{
+
+}
+
 static void ui_menu_select_main_menu(void)
 {
     switch(menu_pos)    // main menu: set menu variables and go into next menu
@@ -815,6 +827,13 @@ static void ui_menu_select_main_menu(void)
             active_menu = ACK_MODE_DIAG_MENU;
             ui_load_menu();
             break;
+        case CURSOR_LINE_10:
+            menu_pos = 0;
+            menu_mode = 0;
+            update_rate = 0;
+            active_menu = NETWORK_TOKEN_MENU;
+            ui_load_menu();
+            break;
         default:
             break;
     }
@@ -844,6 +863,9 @@ static void ui_menu_select(void)
             break;
         case ACK_MODE_DIAG_MENU:
             ui_menu_select_ack_mode_menu();
+            break;
+        case NETWORK_TOKEN_MENU:
+            ui_menu_select_net_token_toggle();
             break;
         default:
             break;

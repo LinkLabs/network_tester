@@ -21,6 +21,7 @@ typedef enum
     UART_PASS_DIAG_MENU,
     DRIVE_MODE_DIAG_MENU,
     ACK_MODE_DIAG_MENU,
+    NETWORK_TOKEN_MENU,
 } menu_names_t;
 
 typedef enum
