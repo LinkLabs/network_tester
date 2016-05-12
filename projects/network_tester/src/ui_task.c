@@ -604,7 +604,6 @@ static void ui_load_menu(void)
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
             strncpy(screen[1], network_token_menu_text[0], LCD_COLUMNS);
-            //ui_menu_select_net_token_toggle();
             screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
@@ -764,7 +763,11 @@ static void ui_menu_select_ack_mode_menu(void)
 
 static void ui_menu_select_net_token_toggle(void)
 {
-
+    switch (menu_pos) {
+        case CURSOR_LINE_1: // TOGGLE
+            // todo
+            break;
+    }
 }
 
 static void ui_menu_select_main_menu(void)
