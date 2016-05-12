@@ -104,7 +104,9 @@ const char main_menu_text[][LCD_COLUMNS] = {" GPS Test           ",
                                             " UART Pass-Through  ",
                                             " Drive Test Mode    ",
                                             " Uplink Ack Mode    ",
-                                            " Set Network Token  "};
+                                            " Set Network Token  ",
+                                            "                    ",
+                                            "                    "};
 
 const char gps_menu_title[LCD_COLUMNS] = "GW:                 ";
 const char gps_menu_text[][LCD_COLUMNS] = {" Mode: On Demand    ",
@@ -140,7 +142,7 @@ const char ack_mode_diag_menu_title[LCD_COLUMNS] = "Uplink Ack Mode     ";
 const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
-const char network_token_menu_title[LCD_COLUMNS] = "Network Token       ";
+const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token    ";
 const char network_token_menu_text[][LCD_COLUMNS] = {" Toggle"};
 
 // menu options
@@ -164,7 +166,7 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
-                             {network_token_menu_title, network_token_menu_title, 0, 1, 12},
+                             {network_token_menu_title, network_token_menu_title, 0, 0, 2},
                              };
 
 /*********************************************************************/
@@ -518,7 +520,6 @@ static void ui_load_menu(void)
 
     switch(active_menu)
     {
-        case NETWORK_TOKEN_MENU:
         case MAIN_MENU:
             ui_print_mac_address_string(screen[0]);
             menu_pos_floor = (menu_pos/3) * 3;
@@ -598,6 +599,13 @@ static void ui_load_menu(void)
             strncpy(screen[1], ack_mode_diag_menu_text[0], LCD_COLUMNS);
             strncpy(screen[2], ack_mode_diag_menu_text[1], LCD_COLUMNS);
             ui_menu_load_ack_mode_enabled();
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
+        case NETWORK_TOKEN_MENU:
+            strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
+            strncpy(screen[1], network_token_menu_text[0], LCD_COLUMNS);
+            //ui_menu_select_net_token_toggle();
+            screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
         default:
@@ -895,6 +903,7 @@ static void ui_menu_back(void)
         case NETWORK_DIAG_MENU:
         case DRIVE_MODE_DIAG_MENU:
         case ACK_MODE_DIAG_MENU:
+        case NETWORK_TOKEN_MENU:
             ui_menu_back_common();
             break;
         case MAIN_MENU:
