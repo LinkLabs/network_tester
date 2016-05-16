@@ -154,6 +154,7 @@ const uint32_t gps_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
 #define SENSOR_MENU_MODE_MAX  2
 const char sensor_menu_modes[SENSOR_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On Demand    "," Mode: 10s          "," Mode: 30s          "};
 const uint32_t sensor_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
+// Netowrk Token Options
 
 
 const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
@@ -216,7 +217,8 @@ static uint8_t init_notify_task(void);
 static void ui_load_menu(void);
 static void ui_menu_select(void);
 static void ui_menu_back(void);
-static void ui_print_mac_address_string(char* dest);
+static void ui_print_mac_address_string(char *dest);
+static void ui_print_net_token_string(char *dest);
 static void ui_menu_load_enabled_status(bool is_enabled);
 /*********************************************************************/
 
@@ -604,6 +606,7 @@ static void ui_load_menu(void)
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
             strncpy(screen[1], network_token_menu_text[0], LCD_COLUMNS);
+            ui_print_net_token_string(screen[3]);
             screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
@@ -763,9 +766,17 @@ static void ui_menu_select_ack_mode_menu(void)
 
 static void ui_menu_select_net_token_toggle(void)
 {
+    // todo: are these data constant or do they need to be recieved and sent back?
+    uint32_t *net_token;
+    uint8_t *app_token, *qos;
+    enum ll_downlink_mode *dl_mode;
+
     switch (menu_pos) {
-        case CURSOR_LINE_1: // TOGGLE
-            // todo
+        case CURSOR_LINE_1: // TOGGLE BUTTON
+            ll_config_get(&net_token, &app_token, &dl_mode, &qos);
+            // todo: set network token
+            //net_token++;//temp play with
+            //ll_config_set(net_token, app_token, dl_mode, qos);
             break;
     }
 }
@@ -921,6 +932,13 @@ static void ui_menu_back(void)
 static void ui_print_mac_address_string(char* dest)
 {
     sprintf(dest,"$301$0-0-0-%09X", (unsigned int)sup_get_MAC_address());
+}
+
+static void ui_print_net_token_string(char *dest)
+{
+    uint32_t *net_token;
+    ll_config_get(&net_token, NULL, NULL, NULL);
+    sprintf(dest, "Token: %09X", net_token);
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
