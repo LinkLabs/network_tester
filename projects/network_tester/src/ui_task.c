@@ -767,16 +767,18 @@ static void ui_menu_select_ack_mode_menu(void)
 static void ui_menu_select_net_token_toggle(void)
 {
     // todo: are these data constant or do they need to be recieved and sent back?
-    uint32_t *net_token;
-    uint8_t *app_token, *qos;
+    uint32_t net_token;
+    uint8_t app_token[APP_TOKEN_LEN], *qos;
     enum ll_downlink_mode *dl_mode;
 
     switch (menu_pos) {
         case CURSOR_LINE_1: // TOGGLE BUTTON
-            ll_config_get(&net_token, &app_token, &dl_mode, &qos);
+            ll_config_get(&net_token, app_token, &dl_mode, &qos);
             // todo: set network token
-            //net_token++;//temp play with
-            //ll_config_set(net_token, app_token, dl_mode, qos);
+            net_token++;//temp play with
+            ll_config_set(net_token, app_token, dl_mode, qos);
+            ui_refresh_display();
+            //ui_print_net_token_string(screen[3]);
             break;
     }
 }
