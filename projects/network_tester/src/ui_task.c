@@ -29,6 +29,7 @@
 #include "network_tester_version.h"
 #include "ll_ifc.h"
 #include "ll_ifc_consts.h"
+#include "ll_ifc_symphony.h"
 #include "supervisor.h"
 #include "debug_print.h"
 //-----FreeRTOS Libraries-----//
@@ -142,7 +143,7 @@ const char ack_mode_diag_menu_title[LCD_COLUMNS] = "Uplink Ack Mode     ";
 const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
-const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token    ";
+const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
 const char network_token_menu_text[][LCD_COLUMNS] = {" Toggle"};
 
 // menu options
@@ -767,8 +768,8 @@ static void ui_menu_select_ack_mode_menu(void)
 static void ui_menu_select_net_token_toggle(void)
 {
     uint32_t net_token;
-    uint8_t app_token[APP_TOKEN_LEN], *qos;
-    enum ll_downlink_mode *dl_mode;
+    uint8_t app_token[APP_TOKEN_LEN], qos;
+    enum ll_downlink_mode dl_mode;
     switch (menu_pos) {
         case CURSOR_LINE_1: // TOGGLE BUTTON
             ll_config_get(&net_token, app_token, &dl_mode, &qos);
@@ -937,7 +938,7 @@ static void ui_print_net_token_string(char *dest)
 {
     uint32_t net_token;
     ll_config_get(&net_token, NULL, NULL, NULL);
-    sprintf(dest, "Token: %09X", net_token);
+    sprintf(dest, "Token: %09X", (unsigned int)net_token);
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
