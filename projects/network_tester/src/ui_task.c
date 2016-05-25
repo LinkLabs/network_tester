@@ -74,9 +74,9 @@ typedef struct
 {
     const char *menu_title;
     const char *menu_text;
-    uint32_t    cursor_min;
-    uint32_t    cursor_max;
-    uint32_t    num_lines;
+    uint32_t    cursor_min;//2
+    uint32_t    cursor_max;//3
+    uint32_t    num_lines;//2
 } menu_info_t;
 
 typedef struct
@@ -144,7 +144,7 @@ const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
 const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
-const char network_token_menu_text[][LCD_COLUMNS] = {" Toggle"};
+const char network_token_menu_text[][LCD_COLUMNS] = {" Apply"};
 
 // menu options
 // GPS Test Options
@@ -168,7 +168,7 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
-                             {network_token_menu_title, network_token_menu_title, 0, 0, 2},
+                             {network_token_menu_title, network_token_menu_title, 2, 3, 2},
                              };
 
 /*********************************************************************/
@@ -606,9 +606,9 @@ static void ui_load_menu(void)
             break;
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
-            strncpy(screen[1], network_token_menu_text[0], LCD_COLUMNS);
-            ui_print_net_token_string(screen[3]);
-            screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
+            ui_print_net_token_string(screen[2]);
+            strncpy(screen[3], network_token_menu_text[0], LCD_COLUMNS);
+            screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
         default:
@@ -938,7 +938,7 @@ static void ui_print_net_token_string(char *dest)
 {
     uint32_t net_token;
     ll_config_get(&net_token, NULL, NULL, NULL);
-    sprintf(dest, "Token: %09X", (unsigned int)net_token);
+    sprintf(dest, " NetToken: %09X", (unsigned int)net_token);
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
