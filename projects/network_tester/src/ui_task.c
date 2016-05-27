@@ -74,9 +74,9 @@ typedef struct
 {
     const char *menu_title;
     const char *menu_text;
-    uint32_t    cursor_min;//2
-    uint32_t    cursor_max;//3
-    uint32_t    num_lines;//2
+    uint32_t    cursor_min;
+    uint32_t    cursor_max;
+    uint32_t    num_lines;
 } menu_info_t;
 
 typedef struct
@@ -144,7 +144,7 @@ const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
 const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
-const char network_token_menu_text[][LCD_COLUMNS] = {" Apply"};
+const char network_token_menu_text[][LCD_COLUMNS] = {" Apply              "};
 
 // menu options
 // GPS Test Options
@@ -168,7 +168,7 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
-                             {network_token_menu_title, network_token_menu_title, 2, 3, 2},
+                             {network_token_menu_title, network_token_menu_title, 0, 1, 1},
                              };
 
 /*********************************************************************/
@@ -220,6 +220,7 @@ static void ui_menu_select(void);
 static void ui_menu_back(void);
 static void ui_print_mac_address_string(char *dest);
 static void ui_print_net_token_string(char *dest);
+static void ui_print_net_token_cursor(char *dest);
 static void ui_menu_load_enabled_status(bool is_enabled);
 /*********************************************************************/
 
@@ -296,10 +297,21 @@ static void ui_increment_menu_position(void)
             }
             xTaskNotifyGive(s_screen_task_handle);
             break;
+        case NETWORK_TOKEN_MENU:
+            // Increment cursor, load new screen (if necessary)
+            screen[(menu_pos%3)+2][0] = ' ';
+            menu_pos++;
+            if(menu_pos > menus[active_menu].cursor_max)
+            {
+                menu_pos = menus[active_menu].cursor_min;
+            }
+
+            screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
         case MAIN_MENU:
         case GPS_MENU:
         case SENSOR_MODE_MENU:
-        case NETWORK_TOKEN_MENU:
         default:
             // Increment cursor, load new screen (if necessary)
             screen[(menu_pos%3)+1][0] = ' ';
@@ -606,6 +618,7 @@ static void ui_load_menu(void)
             break;
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
+            ui_print_net_token_cursor(screen[1]);
             ui_print_net_token_string(screen[2]);
             strncpy(screen[3], network_token_menu_text[0], LCD_COLUMNS);
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
@@ -765,18 +778,24 @@ static void ui_menu_select_ack_mode_menu(void)
     xTaskNotifyGive(s_screen_task_handle);
 }
 
-static void ui_menu_select_net_token_toggle(void)
+static void ui_menu_select_net_token_mod(void)
 {
     uint32_t net_token;
     uint8_t app_token[APP_TOKEN_LEN], qos;
     enum ll_downlink_mode dl_mode;
     switch (menu_pos) {
-        case CURSOR_LINE_1: // TOGGLE BUTTON
+        case CURSOR_LINE_1: // Configure Network Token
             ll_config_get(&net_token, app_token, &dl_mode, &qos);
             net_token++;
             ll_config_set(net_token, app_token, dl_mode, qos);
             ui_refresh_display();
             xTaskNotifyGive(s_screen_task_handle);
+            break;
+        case CURSOR_LINE_2: // Apply Button
+
+            break;
+        default:
+            EFM_ASSERT(0);
             break;
     }
 }
@@ -887,7 +906,7 @@ static void ui_menu_select(void)
             ui_menu_select_ack_mode_menu();
             break;
         case NETWORK_TOKEN_MENU:
-            ui_menu_select_net_token_toggle();
+            ui_menu_select_net_token_mod();
             break;
         default:
             break;
@@ -939,6 +958,11 @@ static void ui_print_net_token_string(char *dest)
     uint32_t net_token;
     ll_config_get(&net_token, NULL, NULL, NULL);
     sprintf(dest, " NetToken: %09X", (unsigned int)net_token);
+}
+
+static void ui_print_net_token_cursor(char *dest)
+{
+    sprintf(dest, "                    ");
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
