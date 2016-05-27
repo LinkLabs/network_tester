@@ -218,6 +218,7 @@ static uint8_t init_screen_update_task(void);
 static uint8_t init_notify_task(void);
 static void ui_load_menu(void);
 static void ui_menu_select(void);
+static void ui_menu_long_select(void);
 static void ui_menu_back(void);
 static void ui_print_mac_address_string(char *dest);
 static void ui_print_current_net_token_string(char *dest);
@@ -346,8 +347,9 @@ static portTASK_FUNCTION(btn_task, param)
     uint32_t neg_edges = 0;
 
     // keeps track of back button long press
-    BaseType_t last_back_btn_down_tick = xTaskGetTickCount();
-    bool was_longpress_back = false;
+    BaseType_t last_back_btn_down_tick = xTaskGetTickCount(),
+        last_sel_btn_down_tick = xTaskGetTickCount();
+    bool was_longpress_back = false, was_longpress_select = false;
 
 
     // init button states
@@ -368,7 +370,14 @@ static portTASK_FUNCTION(btn_task, param)
         // SELECT button up
         if(pos_edges & SEL_BTN_MASK)
         {
-            ui_menu_select();
+            if (!was_longpress_select) ui_menu_select();
+            was_longpress_select = false;
+        }
+
+        // DOWN button up
+        if(pos_edges & DOWN_BTN_MASK)
+        {
+            ui_increment_menu_position();
         }
 
         // BACK button up
@@ -382,10 +391,24 @@ static portTASK_FUNCTION(btn_task, param)
             was_longpress_back = false;
         }
 
-        // DOWN button up
-        if(pos_edges & DOWN_BTN_MASK)
+
+        // SELECT button down
+        if(neg_edges & SEL_BTN_MASK)
         {
-            ui_increment_menu_position();
+            last_sel_btn_down_tick = xTaskGetTickCount();
+        }
+
+        // SELECT button long press
+        if(~btn_states & SEL_BTN_MASK)
+        {
+            uint32_t seconds_since_last_depress = ((uint32_t)(xTaskGetTickCount() - last_sel_btn_down_tick)) * portTICK_PERIOD_MS/1000;
+            if(seconds_since_last_depress > 2)
+            {
+                // Refresh time latch
+                last_sel_btn_down_tick = xTaskGetTickCount();
+                was_longpress_select = true;
+                ui_menu_long_select();
+            }
         }
 
         // BACK button down
@@ -795,11 +818,7 @@ static void ui_menu_select_net_token_mod(void)
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
             } else {
-                if (/* long hold*/) {
-                    token_place = token_place >= 7 ? 0 : token_place + 1; //if long press
-                } else {
-                    temp_token += (1 << (4 * token_place));
-                }
+                temp_token += (1 << (4 * token_place));
             }
 
             ui_refresh_display();
@@ -820,6 +839,17 @@ static void ui_menu_select_net_token_mod(void)
             break;
         default:
             EFM_ASSERT(0);
+            break;
+    }
+}
+
+static void ui_menu_long_select_net_token_mod(void)
+{
+    switch (menu_pos) {
+        case CURSOR_LINE_1: // Configure Network Token
+            token_place = token_place >= 7 ? 0 : token_place + 1;
+            ui_refresh_display();
+            xTaskNotifyGive(s_screen_task_handle);
             break;
     }
 }
@@ -932,6 +962,25 @@ static void ui_menu_select(void)
         case NETWORK_TOKEN_MENU:
             ui_menu_select_net_token_mod();
             break;
+        default:
+            break;
+    }
+}
+
+static void ui_menu_long_select(void)
+{
+    switch(active_menu)
+    {
+        case NETWORK_TOKEN_MENU:
+            ui_menu_long_select_net_token_mod();
+            break;
+        case MAIN_MENU:
+        case GPS_MENU:
+        case SENSOR_MODE_MENU:
+        case DOWNLINK_MENU:
+        case UART_PASS_DIAG_MENU:
+        case DRIVE_MODE_DIAG_MENU:
+        case ACK_MODE_DIAG_MENU:
         default:
             break;
     }
