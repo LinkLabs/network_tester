@@ -155,7 +155,6 @@ const uint32_t gps_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
 #define SENSOR_MENU_MODE_MAX  2
 const char sensor_menu_modes[SENSOR_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On Demand    "," Mode: 10s          "," Mode: 30s          "};
 const uint32_t sensor_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
-// Netowrk Token Options
 
 
 const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
@@ -190,7 +189,9 @@ static uint32_t menu_pos;
 bool            tx_trigger = false;
 char            downlink_msgs[2][LCD_COLUMNS] = {"                    ",
                                                  "                    "};
-
+uint8_t         token_place = 0;
+uint32_t        temp_token = 0;
+bool            token_edit_mode = false;
 // screen variable
 s_is_force_uart_passthru = false;
 static char     screen[LCD_ROWS][LCD_COLUMNS] = {"     Link Labs      ",
@@ -219,8 +220,9 @@ static void ui_load_menu(void);
 static void ui_menu_select(void);
 static void ui_menu_back(void);
 static void ui_print_mac_address_string(char *dest);
-static void ui_print_net_token_string(char *dest);
-static void ui_print_net_token_cursor(char *dest);
+static void ui_print_current_net_token_string(char *dest);
+static void ui_print_net_token(char *dest);
+static void ui_print_net_token_cursor(char *dest, uint8_t pos);
 static void ui_menu_load_enabled_status(bool is_enabled);
 /*********************************************************************/
 
@@ -298,14 +300,12 @@ static void ui_increment_menu_position(void)
             xTaskNotifyGive(s_screen_task_handle);
             break;
         case NETWORK_TOKEN_MENU:
-            // Increment cursor, load new screen (if necessary)
             screen[(menu_pos%3)+2][0] = ' ';
             menu_pos++;
             if(menu_pos > menus[active_menu].cursor_max)
             {
                 menu_pos = menus[active_menu].cursor_min;
             }
-
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
@@ -618,8 +618,14 @@ static void ui_load_menu(void)
             break;
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
-            ui_print_net_token_cursor(screen[1]);
-            ui_print_net_token_string(screen[2]);
+            if (token_edit_mode)
+            {
+                ui_print_net_token_cursor(screen[1], token_place);
+                ui_print_net_token(screen[2]);
+            } else {
+                ui_print_net_token_cursor(screen[1], -1);
+                ui_print_current_net_token_string(screen[2]);
+            }
             strncpy(screen[3], network_token_menu_text[0], LCD_COLUMNS);
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
@@ -780,19 +786,37 @@ static void ui_menu_select_ack_mode_menu(void)
 
 static void ui_menu_select_net_token_mod(void)
 {
-    uint32_t net_token;
     uint8_t app_token[APP_TOKEN_LEN], qos;
     enum ll_downlink_mode dl_mode;
+
     switch (menu_pos) {
         case CURSOR_LINE_1: // Configure Network Token
-            ll_config_get(&net_token, app_token, &dl_mode, &qos);
-            net_token++;
-            ll_config_set(net_token, app_token, dl_mode, qos);
+            if (!token_edit_mode) {
+                ll_config_get(&temp_token, app_token, &dl_mode, &qos);
+                token_edit_mode = true;
+            } else {
+                if (/* long hold*/) {
+                    token_place = token_place >= 7 ? 0 : token_place + 1; //if long press
+                } else {
+                    temp_token += (1 << (4 * token_place));
+                }
+            }
+
             ui_refresh_display();
             xTaskNotifyGive(s_screen_task_handle);
             break;
         case CURSOR_LINE_2: // Apply Button
-
+            if (token_edit_mode)
+            {
+                token_edit_mode = false;
+                /*if (*/ll_config_set(temp_token, app_token, dl_mode, qos);//)
+                //{
+                    ui_refresh_display();
+                    xTaskNotifyGive(s_screen_task_handle);
+                //} else {
+                    // todo: handle fail
+                //}
+            }
             break;
         default:
             EFM_ASSERT(0);
@@ -953,16 +977,23 @@ static void ui_print_mac_address_string(char* dest)
     sprintf(dest,"$301$0-0-0-%09X", (unsigned int)sup_get_MAC_address());
 }
 
-static void ui_print_net_token_string(char *dest)
+static void ui_print_current_net_token_string(char *dest)
 {
     uint32_t net_token;
-    ll_config_get(&net_token, NULL, NULL, NULL);
-    sprintf(dest, " NetToken: %09X", (unsigned int)net_token);
+    ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
+    sprintf(dest, " NetToken: %08X", net_token);
 }
 
-static void ui_print_net_token_cursor(char *dest)
+static void ui_print_net_token(char *dest)
 {
-    sprintf(dest, "                    ");
+    sprintf(dest, " NetToken: %" PRIx32, temp_token);
+}
+
+static void ui_print_net_token_cursor(char *dest, uint8_t pos)
+{
+    char x[] = "                    ";
+    x[18-pos] = '_';
+    sprintf(dest, x);
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
