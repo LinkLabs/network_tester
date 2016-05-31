@@ -43,6 +43,8 @@
 #define BUTTON_TIMER_ID                 0
 
 #define CURSOR_GLYPH                    0x7E // right arrow
+#define SMILE_GLYPH                     0xAF // smile face
+#define ERROR_GLYPH                     0xEB // small x
 
 #define MENU_TITLE_LINE                 0
 #define MENU_LINE_1                     1
@@ -85,6 +87,13 @@ typedef struct
     uint32_t    beep_off_time;
     uint32_t    num_cycles;
 } beep_t;
+
+typedef enum
+{
+    unset   = 0,
+    success = 1,
+    failed  = 2,
+} net_token_state_t;
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
 // notification beeps
@@ -144,7 +153,6 @@ const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
 const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
-const char network_token_menu_text[][LCD_COLUMNS] = {" Apply              "};
 
 // menu options
 // GPS Test Options
@@ -181,17 +189,18 @@ static wdg_handler_t    s_btn_task_wdg_handler;
 //static wdg_handler_t    s_notify_task_wdg_handler;
 
 // menu variables
-menu_names_t    active_menu;
-uint32_t        menu_mode = 0;
-bool            buzz_en = true;
-uint32_t        update_rate = 0;
-static uint32_t menu_pos;
-bool            tx_trigger = false;
-char            downlink_msgs[2][LCD_COLUMNS] = {"                    ",
-                                                 "                    "};
-uint8_t         token_place = 0;
-uint32_t        temp_token = 0;
-bool            token_edit_mode = false;
+menu_names_t      active_menu;
+uint32_t          menu_mode = 0;
+bool              buzz_en = true;
+uint32_t          update_rate = 0;
+static uint32_t   menu_pos;
+bool              tx_trigger = false;
+char              downlink_msgs[2][LCD_COLUMNS] = {"                    ",
+                                                   "                    "};
+uint8_t           token_place = 0;
+uint32_t          temp_token = 0;
+bool              token_edit_mode = false;
+net_token_state_t token_state = unset;
 // screen variable
 s_is_force_uart_passthru = false;
 static char     screen[LCD_ROWS][LCD_COLUMNS] = {"     Link Labs      ",
@@ -221,9 +230,9 @@ static void ui_menu_select(void);
 static void ui_menu_long_select(void);
 static void ui_menu_back(void);
 static void ui_print_mac_address_string(char *dest);
-static void ui_print_current_net_token_string(char *dest);
 static void ui_print_net_token(char *dest);
 static void ui_print_net_token_cursor(char *dest, uint8_t pos);
+static void ui_print_net_status(char *dest);
 static void ui_menu_load_enabled_status(bool is_enabled);
 /*********************************************************************/
 
@@ -402,7 +411,7 @@ static portTASK_FUNCTION(btn_task, param)
         if(~btn_states & SEL_BTN_MASK)
         {
             uint32_t seconds_since_last_depress = ((uint32_t)(xTaskGetTickCount() - last_sel_btn_down_tick)) * portTICK_PERIOD_MS/1000;
-            if(seconds_since_last_depress > 2)
+            if(seconds_since_last_depress > 1)
             {
                 // Refresh time latch
                 last_sel_btn_down_tick = xTaskGetTickCount();
@@ -641,15 +650,10 @@ static void ui_load_menu(void)
             break;
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
-            if (token_edit_mode)
-            {
-                ui_print_net_token_cursor(screen[1], token_place);
-                ui_print_net_token(screen[2]);
-            } else {
-                ui_print_net_token_cursor(screen[1], -1);
-                ui_print_current_net_token_string(screen[2]);
-            }
-            strncpy(screen[3], network_token_menu_text[0], LCD_COLUMNS);
+            ui_print_net_token_cursor(screen[1], token_edit_mode ? token_place : -1);
+            screen[1][0] = token_set_success ? SMILE_GLYPH : ERROR_GLYPH;
+            ui_print_net_token(screen[2]);
+            ui_print_net_status(screen[3]);
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
@@ -817,6 +821,7 @@ static void ui_menu_select_net_token_mod(void)
             if (!token_edit_mode) {
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
+                token_first_time_setup = false;
             } else {
                 temp_token += (1 << (4 * token_place));
             }
@@ -828,13 +833,9 @@ static void ui_menu_select_net_token_mod(void)
             if (token_edit_mode)
             {
                 token_edit_mode = false;
-                /*if (*/ll_config_set(temp_token, app_token, dl_mode, qos);//)
-                //{
-                    ui_refresh_display();
-                    xTaskNotifyGive(s_screen_task_handle);
-                //} else {
-                    // todo: handle fail
-                //}
+                token_set_success = ll_config_set(temp_token, app_token, dl_mode, qos) == 0;
+                ui_refresh_display();
+                xTaskNotifyGive(s_screen_task_handle);
             }
             break;
         default:
@@ -1026,16 +1027,16 @@ static void ui_print_mac_address_string(char* dest)
     sprintf(dest,"$301$0-0-0-%09X", (unsigned int)sup_get_MAC_address());
 }
 
-static void ui_print_current_net_token_string(char *dest)
-{
-    uint32_t net_token;
-    ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
-    sprintf(dest, " NetToken: %08X", net_token);
-}
-
 static void ui_print_net_token(char *dest)
 {
-    sprintf(dest, " NetToken: %" PRIx32, temp_token);
+    if (token_edit_mode)
+    {
+        sprintf(dest, " NetToken: %" PRIx32, temp_token);
+    } else {
+        uint32_t net_token;
+        ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
+        sprintf(dest, " NetToken: %08X", net_token);
+    }
 }
 
 static void ui_print_net_token_cursor(char *dest, uint8_t pos)
@@ -1043,6 +1044,16 @@ static void ui_print_net_token_cursor(char *dest, uint8_t pos)
     char x[] = "                    ";
     x[18-pos] = '_';
     sprintf(dest, x);
+}
+
+static void ui_print_net_status(char *dest)
+{
+    if (token_edit_mode)
+    {
+        sprintf(dest, " Apply");
+    } else {
+        sprintf(dest, token_set_success ? " Apply | ok" : " Apply | failed");
+    }
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
