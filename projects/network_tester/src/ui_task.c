@@ -821,6 +821,7 @@ static void ui_menu_select_net_token_mod(void)
             if (!token_edit_mode) {
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
+                token_state = unset;
             } else {
                 temp_token += (1 << (4 * token_place));
             }
@@ -1033,11 +1034,11 @@ static void ui_print_net_token(char *dest)
 {
     if (token_edit_mode)
     {
-        sprintf(dest, " NetToken: %" PRIx32, temp_token);
+        sprintf(dest, " NetToken: %" PRIx32, (long unsigned int)temp_token);
     } else {
         uint32_t net_token;
         ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
-        sprintf(dest, " NetToken: %08X", net_token);
+        sprintf(dest, " NetToken: %08X", (unsigned int)net_token);
     }
 }
 
