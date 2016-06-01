@@ -806,7 +806,12 @@ static void sup_initializing_state()
     GW_CONNECTED_LED(OFF);
 
     // Set module configuration
-    int32_t ret = ll_config_set(NET_TOKEN_OPEN, s_app_token, LL_DL_ALWAYS_ON, 0);
+    uint8_t app_token[APP_TOKEN_LEN], qos;
+    enum ll_downlink_mode dl_mode;
+    uint32_t net_token;
+    int32_t ret = ll_config_get(&net_token, app_token, &dl_mode, &qos); // short circuit hack
+    EFM_ASSERT(ret >= 0);
+    ret = ll_config_set(net_token, s_app_token, LL_DL_ALWAYS_ON, 0);
     EFM_ASSERT(ret >= 0);
 
     // Stay here until state is satisfied
