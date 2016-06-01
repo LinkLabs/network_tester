@@ -651,7 +651,7 @@ static void ui_load_menu(void)
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
             ui_print_net_token_cursor(screen[1], token_edit_mode ? token_place : -1);
-            screen[1][0] = token_set_success ? SMILE_GLYPH : ERROR_GLYPH;
+            screen[1][0] = token_state == unset ? ' ' : token_state == success ? SMILE_GLYPH : ERROR_GLYPH;
             ui_print_net_token(screen[2]);
             ui_print_net_status(screen[3]);
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
@@ -821,7 +821,6 @@ static void ui_menu_select_net_token_mod(void)
             if (!token_edit_mode) {
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
-                token_first_time_setup = false;
             } else {
                 temp_token += (1 << (4 * token_place));
             }
@@ -833,7 +832,7 @@ static void ui_menu_select_net_token_mod(void)
             if (token_edit_mode)
             {
                 token_edit_mode = false;
-                token_set_success = ll_config_set(temp_token, app_token, dl_mode, qos) == 0;
+                token_state = ll_config_set(temp_token, app_token, dl_mode, qos) == 0 ? success : failed;
                 ui_refresh_display();
                 xTaskNotifyGive(s_screen_task_handle);
             }
@@ -1010,7 +1009,10 @@ static void ui_menu_back(void)
         case NETWORK_DIAG_MENU:
         case DRIVE_MODE_DIAG_MENU:
         case ACK_MODE_DIAG_MENU:
+            ui_menu_back_common();
+            break;
         case NETWORK_TOKEN_MENU:
+            token_state = unset;
             ui_menu_back_common();
             break;
         case MAIN_MENU:
@@ -1052,7 +1054,8 @@ static void ui_print_net_status(char *dest)
     {
         sprintf(dest, " Apply");
     } else {
-        sprintf(dest, token_set_success ? " Apply | ok" : " Apply | failed");
+        sprintf(dest, token_state == unset ? " Apply" : token_state == success ?
+            " Apply | ok" : " Apply | failed");
     }
 }
 /*********************************************************************/
