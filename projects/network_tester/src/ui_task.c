@@ -90,9 +90,9 @@ typedef struct
 
 typedef enum
 {
-    unset   = 0,
-    success = 1,
-    failed  = 2,
+    LL_NT_STATE_UNSET   = 0,
+    LL_NT_STATE_SUCCESS = 1,
+    LL_NT_STATE_FAILED  = 2,
 } net_token_state_t;
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
@@ -200,7 +200,7 @@ char              downlink_msgs[2][LCD_COLUMNS] = {"                    ",
 uint8_t           token_place = 0;
 uint32_t          temp_token = 0;
 bool              token_edit_mode = false;
-net_token_state_t token_state = unset;
+net_token_state_t token_state = LL_NT_STATE_UNSET;
 // screen variable
 s_is_force_uart_passthru = false;
 static char     screen[LCD_ROWS][LCD_COLUMNS] = {"     Link Labs      ",
@@ -503,7 +503,7 @@ static uint8_t init_button_task(void)
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS;
+    return EXIT_LL_NT_STATE_SUCCESS;
 }
 /*********************************************************************/
 static uint8_t init_screen_update_task(void)
@@ -515,7 +515,7 @@ static uint8_t init_screen_update_task(void)
     // load splash screen (already loaded into screen variable)
     lcd_write_screen(screen);
 
-    return EXIT_SUCCESS;
+    return EXIT_LL_NT_STATE_SUCCESS;
 }
 /*********************************************************************/
 static uint8_t init_notify_task(void)
@@ -524,7 +524,7 @@ static uint8_t init_notify_task(void)
     {
         return EXIT_FAILURE;
     }
-    return EXIT_SUCCESS;
+    return EXIT_LL_NT_STATE_SUCCESS;
 }
 
 static void ui_menu_load_enabled_status(bool is_enabled)
@@ -651,7 +651,7 @@ static void ui_load_menu(void)
         case NETWORK_TOKEN_MENU:
             strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
             ui_print_net_token_cursor(screen[1], token_edit_mode ? token_place : -1);
-            screen[1][0] = token_state == unset ? ' ' : token_state == success ? SMILE_GLYPH : ERROR_GLYPH;
+            screen[1][0] = token_state == LL_NT_STATE_UNSET ? ' ' : token_state == LL_NT_STATE_SUCCESS ? SMILE_GLYPH : ERROR_GLYPH;
             ui_print_net_token(screen[2]);
             ui_print_net_status(screen[3]);
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
@@ -821,7 +821,7 @@ static void ui_menu_select_net_token_mod(void)
             if (!token_edit_mode) {
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
-                token_state = unset;
+                token_state = LL_NT_STATE_UNSET;
             } else {
                 temp_token += (1 << (4 * token_place));
             }
@@ -833,7 +833,7 @@ static void ui_menu_select_net_token_mod(void)
             if (token_edit_mode)
             {
                 token_edit_mode = false;
-                token_state = ll_config_set(temp_token, app_token, dl_mode, qos) == 0 ? success : failed;
+                token_state = ll_config_set(temp_token, app_token, dl_mode, qos) == 0 ? LL_NT_STATE_SUCCESS : LL_NT_STATE_FAILED;
                 ui_refresh_display();
                 xTaskNotifyGive(s_screen_task_handle);
             }
@@ -1013,7 +1013,7 @@ static void ui_menu_back(void)
             ui_menu_back_common();
             break;
         case NETWORK_TOKEN_MENU:
-            token_state = unset;
+            token_state = LL_NT_STATE_UNSET;
             ui_menu_back_common();
             break;
         case MAIN_MENU:
@@ -1034,7 +1034,7 @@ static void ui_print_net_token(char *dest)
 {
     if (token_edit_mode)
     {
-        sprintf(dest, " NetToken: %" PRIx32, (long unsigned int)temp_token);
+        sprintf(dest, " NetToken: %08" PRIx32, (long unsigned int)temp_token);
     } else {
         uint32_t net_token;
         ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
@@ -1055,8 +1055,8 @@ static void ui_print_net_status(char *dest)
     {
         sprintf(dest, " Apply");
     } else {
-        sprintf(dest, token_state == unset ? " Apply" : token_state == success ?
-            " Apply | ok" : " Apply | failed");
+        sprintf(dest, token_state == LL_NT_STATE_UNSET ? " Apply" : token_state == LL_NT_STATE_SUCCESS ?
+            " Apply | ok" : " Apply | LL_NT_STATE_FAILED");
     }
 }
 /*********************************************************************/
@@ -1079,7 +1079,7 @@ uint8_t init_user_interface(void)
     menu_pos = 0;
     active_menu = MAIN_MENU;
 
-    return EXIT_SUCCESS;
+    return EXIT_LL_NT_STATE_SUCCESS;
 }
 /*********************************************************************/
 // returns current menu
