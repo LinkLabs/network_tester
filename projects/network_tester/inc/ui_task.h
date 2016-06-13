@@ -22,6 +22,7 @@ typedef enum
     DRIVE_MODE_DIAG_MENU,
     ACK_MODE_DIAG_MENU,
     NETWORK_TOKEN_MENU,
+    SET_DL_BAND_MENU,
 } menu_names_t;
 
 typedef enum

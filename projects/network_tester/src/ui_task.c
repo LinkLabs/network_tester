@@ -61,6 +61,7 @@
 #define CURSOR_LINE_8                   7
 #define CURSOR_LINE_9                   8
 #define CURSOR_LINE_10                  9
+#define CURSOR_LINE_11                  10
 
 #define RSSI_METER_MIN                  130     // absolute val of min RSSI meter value
 #define RSSI_METER_STEP                 10
@@ -96,6 +97,12 @@ typedef enum
 } net_token_state_t;
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
+// downlink band configs
+const llabs_dl_band_cfg_t FCC         = { 902000000, 928000000, 386703, 3, 0 };
+const llabs_dl_band_cfg_t BRAZIL      = { 916000000, 928000000, 386703, 3, 0 };
+const llabs_dl_band_cfg_t AUSTRALIA   = { 918000000, 926000000, 386703, 3, 0 };
+const llabs_dl_band_cfg_t NEW_ZEALAND = { 921000000, 928000000, 386703, 3, 0 };
+const llabs_dl_band_cfg_t ETSI        = { 869100000, 871000000, 386703, 1, 0 };
 // notification beeps
 const beep_t beeps[6] = {{LONG_BEEP_LENGTH_MS,LONG_BEEP_LENGTH_MS,1},
                          {SHORT_BEEP_LENGTH_MS,SHORT_BEEP_LENGTH_MS,1},
@@ -115,7 +122,7 @@ const char main_menu_text[][LCD_COLUMNS] = {" GPS Test           ",
                                             " Drive Test Mode    ",
                                             " Uplink Ack Mode    ",
                                             " Set Network Token  ",
-                                            "                    ",
+                                            " Set Downlink Band  ",
                                             "                    "};
 
 const char gps_menu_title[LCD_COLUMNS] = "GW:                 ";
@@ -153,8 +160,14 @@ const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
 const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
+const char set_dl_band_title[LCD_COLUMNS] = "Set Downlink Band   ";
+const char set_dl_band_text[][LCD_COLUMNS] = {" USA and Mexico   ",
+                                              " Brazil           ",
+                                              " Australia        ",
+                                              " New Zealand      ",
+                                              " ETSI             ",
+                                              "                  "};
 
-// menu options
 // GPS Test Options
 #define GPS_MENU_MODE_MAX  2
 const char gps_menu_modes[GPS_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On Demand    "," Mode: 10s          "," Mode: 30s          "};
@@ -165,7 +178,7 @@ const char sensor_menu_modes[SENSOR_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On 
 const uint32_t sensor_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
 
 
-const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
+const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 10, 11},
                              {gps_menu_title, gps_menu_text, 0, 1, 3},
                              {sensor_menu_title, sensor_menu_text, 0, 1, 3},
                              {downlink_menu_title, downlink_menu_text, 0, 1, 1},
@@ -175,7 +188,8 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
-                             {network_token_menu_title, network_token_menu_title, 0, 1, 1},
+                             {network_token_menu_title, "", 0, 1, 1},
+                             {set_dl_band_title, set_dl_band_text, 0, 4, 5},
                              };
 
 /*********************************************************************/
@@ -201,6 +215,8 @@ uint8_t           token_place = 0;
 uint32_t          temp_token = 0;
 bool              token_edit_mode = false;
 net_token_state_t token_state = LL_NT_STATE_UNSET;
+bool              dl_band_set = false;
+bool              dl_band_set_failed = false;
 // screen variable
 s_is_force_uart_passthru = false;
 static char     screen[LCD_ROWS][LCD_COLUMNS] = {"     Link Labs      ",
@@ -657,6 +673,35 @@ static void ui_load_menu(void)
             screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
             xTaskNotifyGive(s_screen_task_handle);
             break;
+        case SET_DL_BAND_MENU:
+            menu_pos_floor = (menu_pos/3) * 3;
+            llabs_dl_band_cfg_t dl_band_cfg;
+            int8_t active_pos;
+            if (ll_dl_band_cfg_get(&dl_band_cfg) != 0) {
+                if (dl_band_cfg.band_edge_lower == FCC.band_edge_lower)              active_pos = 0;
+                else if (dl_band_cfg.band_edge_lower == BRAZIL.band_edge_lower)      active_pos = 1;
+                else if (dl_band_cfg.band_edge_lower == AUSTRALIA.band_edge_lower)   active_pos = 2;
+                else if (dl_band_cfg.band_edge_lower == NEW_ZEALAND.band_edge_lower) active_pos = 3;
+                else if (dl_band_cfg.band_edge_lower == ETSI.band_edge_lower)        active_pos = 4;
+                else                                                                 active_pos = -1;
+            } else {
+                screen[0][LCD_COLUMNS-2] = ERROR_GLYPH;
+            }
+            strncpy(screen[0], set_dl_band_title, LCD_COLUMNS);
+            strncpy(screen[1], set_dl_band_text[menu_pos_floor], LCD_COLUMNS);
+            strncpy(screen[2], set_dl_band_text[menu_pos_floor+1], LCD_COLUMNS);
+            strncpy(screen[3], set_dl_band_text[menu_pos_floor+2], LCD_COLUMNS);
+            screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
+            if (dl_band_set) {
+                screen[(menu_pos%3)+1][LCD_COLUMNS-2] = dl_band_set_failed ? ERROR_GLYPH : SMILE_GLYPH;
+                dl_band_set = false;
+                dl_band_set_failed = false;
+            } else {
+                if ((active_pos < 3 && menu_pos <= 2) || (active_pos >= 3 && menu_pos >= 2)) // render the smile on the right page
+                    screen[(active_pos%3)+1][LCD_COLUMNS-2] = SMILE_GLYPH;
+            }
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
         default:
             EFM_ASSERT(false);
             break;
@@ -855,6 +900,22 @@ static void ui_menu_long_select_net_token_mod(void)
     }
 }
 
+static void ui_menu_select_dl_band(void) {
+    llabs_dl_band_cfg_t dl_band_cfg;
+    switch (menu_pos) {
+        case CURSOR_LINE_1: dl_band_cfg = FCC;         break;
+        case CURSOR_LINE_2: dl_band_cfg = BRAZIL;      break;
+        case CURSOR_LINE_3: dl_band_cfg = AUSTRALIA;   break;
+        case CURSOR_LINE_4: dl_band_cfg = NEW_ZEALAND; break;
+        case CURSOR_LINE_5: dl_band_cfg = ETSI;        break;
+        default: break;
+    }
+    dl_band_set_failed = ll_dl_band_cfg_set(&dl_band_cfg) != 0;
+    dl_band_set = true;
+    ui_refresh_display();
+    xTaskNotifyGive(s_screen_task_handle);
+}
+
 static void ui_menu_select_main_menu(void)
 {
     switch(menu_pos)    // main menu: set menu variables and go into next menu
@@ -930,6 +991,13 @@ static void ui_menu_select_main_menu(void)
             active_menu = NETWORK_TOKEN_MENU;
             ui_load_menu();
             break;
+        case CURSOR_LINE_11:
+            menu_pos = 0;
+            menu_mode = 0;
+            update_rate = 0;
+            active_menu = SET_DL_BAND_MENU;
+            ui_load_menu();
+            break;
         default:
             break;
     }
@@ -963,6 +1031,9 @@ static void ui_menu_select(void)
         case NETWORK_TOKEN_MENU:
             ui_menu_select_net_token_mod();
             break;
+        case SET_DL_BAND_MENU:
+            ui_menu_select_dl_band();
+            break;
         default:
             break;
     }
@@ -982,6 +1053,7 @@ static void ui_menu_long_select(void)
         case UART_PASS_DIAG_MENU:
         case DRIVE_MODE_DIAG_MENU:
         case ACK_MODE_DIAG_MENU:
+        case SET_DL_BAND_MENU:
         default:
             break;
     }
@@ -1014,6 +1086,11 @@ static void ui_menu_back(void)
             break;
         case NETWORK_TOKEN_MENU:
             token_state = LL_NT_STATE_UNSET;
+            ui_menu_back_common();
+            break;
+        case SET_DL_BAND_MENU:
+            dl_band_set = false;
+            dl_band_set_failed = false;
             ui_menu_back_common();
             break;
         case MAIN_MENU:
