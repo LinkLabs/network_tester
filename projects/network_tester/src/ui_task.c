@@ -503,7 +503,7 @@ static uint8_t init_button_task(void)
         return EXIT_FAILURE;
     }
 
-    return EXIT_LL_NT_STATE_SUCCESS;
+    return EXIT_SUCCESS;
 }
 /*********************************************************************/
 static uint8_t init_screen_update_task(void)
@@ -515,7 +515,7 @@ static uint8_t init_screen_update_task(void)
     // load splash screen (already loaded into screen variable)
     lcd_write_screen(screen);
 
-    return EXIT_LL_NT_STATE_SUCCESS;
+    return EXIT_SUCCESS;
 }
 /*********************************************************************/
 static uint8_t init_notify_task(void)
@@ -524,7 +524,7 @@ static uint8_t init_notify_task(void)
     {
         return EXIT_FAILURE;
     }
-    return EXIT_LL_NT_STATE_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 static void ui_menu_load_enabled_status(bool is_enabled)
@@ -1056,7 +1056,7 @@ static void ui_print_net_status(char *dest)
         sprintf(dest, " Apply");
     } else {
         sprintf(dest, token_state == LL_NT_STATE_UNSET ? " Apply" : token_state == LL_NT_STATE_SUCCESS ?
-            " Apply | ok" : " Apply | LL_NT_STATE_FAILED");
+            " Apply | ok" : " Apply | failed");
     }
 }
 /*********************************************************************/
@@ -1079,7 +1079,7 @@ uint8_t init_user_interface(void)
     menu_pos = 0;
     active_menu = MAIN_MENU;
 
-    return EXIT_LL_NT_STATE_SUCCESS;
+    return EXIT_SUCCESS;
 }
 /*********************************************************************/
 // returns current menu
