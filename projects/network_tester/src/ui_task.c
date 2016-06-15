@@ -29,6 +29,7 @@
 #include "network_tester_version.h"
 #include "ll_ifc.h"
 #include "ll_ifc_consts.h"
+#include "ll_ifc_symphony.h"
 #include "supervisor.h"
 #include "debug_print.h"
 //-----FreeRTOS Libraries-----//
@@ -42,6 +43,8 @@
 #define BUTTON_TIMER_ID                 0
 
 #define CURSOR_GLYPH                    0x7E // right arrow
+#define SMILE_GLYPH                     0xAF // smile face
+#define ERROR_GLYPH                     0xEB // small x
 
 #define MENU_TITLE_LINE                 0
 #define MENU_LINE_1                     1
@@ -57,6 +60,7 @@
 #define CURSOR_LINE_7                   6
 #define CURSOR_LINE_8                   7
 #define CURSOR_LINE_9                   8
+#define CURSOR_LINE_10                  9
 
 #define RSSI_METER_MIN                  130     // absolute val of min RSSI meter value
 #define RSSI_METER_STEP                 10
@@ -83,6 +87,13 @@ typedef struct
     uint32_t    beep_off_time;
     uint32_t    num_cycles;
 } beep_t;
+
+typedef enum
+{
+    LL_NT_STATE_UNSET   = 0,
+    LL_NT_STATE_SUCCESS = 1,
+    LL_NT_STATE_FAILED  = 2,
+} net_token_state_t;
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
 // notification beeps
@@ -102,7 +113,10 @@ const char main_menu_text[][LCD_COLUMNS] = {" GPS Test           ",
                                             " Network Diagnostics",
                                             " UART Pass-Through  ",
                                             " Drive Test Mode    ",
-                                            " Uplink Ack Mode    "};
+                                            " Uplink Ack Mode    ",
+                                            " Set Network Token  ",
+                                            "                    ",
+                                            "                    "};
 
 const char gps_menu_title[LCD_COLUMNS] = "GW:                 ";
 const char gps_menu_text[][LCD_COLUMNS] = {" Mode: On Demand    ",
@@ -138,6 +152,7 @@ const char ack_mode_diag_menu_title[LCD_COLUMNS] = "Uplink Ack Mode     ";
 const char ack_mode_diag_menu_text[][LCD_COLUMNS] = {" Request ACK      ",
                                                        " on each uplink   ",
                                                        "                    "};
+const char network_token_menu_title[LCD_COLUMNS] = "Set Network Token   ";
 
 // menu options
 // GPS Test Options
@@ -150,7 +165,7 @@ const char sensor_menu_modes[SENSOR_MENU_MODE_MAX+1][LCD_COLUMNS] = {" Mode: On 
 const uint32_t sensor_menu_interval[GPS_MENU_MODE_MAX+1] = {UI_TX_ON_DEMAND,10,30};
 
 
-const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 8, 9},
+const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 9, 10},
                              {gps_menu_title, gps_menu_text, 0, 1, 3},
                              {sensor_menu_title, sensor_menu_text, 0, 1, 3},
                              {downlink_menu_title, downlink_menu_text, 0, 1, 1},
@@ -160,6 +175,7 @@ const menu_info_t menus[] = {{main_menu_title, main_menu_text, 0, 8, 9},
                              {uart_pass_diag_menu_title, uart_pass_diag_menu_text, 0, 0, 0},
                              {drive_mode_diag_menu_title, drive_mode_diag_menu_text, 0, 0, 0},
                              {ack_mode_diag_menu_title, ack_mode_diag_menu_text, 0, 0, 0},
+                             {network_token_menu_title, network_token_menu_title, 0, 1, 1},
                              };
 
 /*********************************************************************/
@@ -173,15 +189,18 @@ static wdg_handler_t    s_btn_task_wdg_handler;
 //static wdg_handler_t    s_notify_task_wdg_handler;
 
 // menu variables
-menu_names_t    active_menu;
-uint32_t        menu_mode = 0;
-bool            buzz_en = true;
-uint32_t        update_rate = 0;
-static uint32_t menu_pos;
-bool            tx_trigger = false;
-char            downlink_msgs[2][LCD_COLUMNS] = {"                    ",
-                                                 "                    "};
-
+menu_names_t      active_menu;
+uint32_t          menu_mode = 0;
+bool              buzz_en = true;
+uint32_t          update_rate = 0;
+static uint32_t   menu_pos;
+bool              tx_trigger = false;
+char              downlink_msgs[2][LCD_COLUMNS] = {"                    ",
+                                                   "                    "};
+uint8_t           token_place = 0;
+uint32_t          temp_token = 0;
+bool              token_edit_mode = false;
+net_token_state_t token_state = LL_NT_STATE_UNSET;
 // screen variable
 s_is_force_uart_passthru = false;
 static char     screen[LCD_ROWS][LCD_COLUMNS] = {"     Link Labs      ",
@@ -208,8 +227,12 @@ static uint8_t init_screen_update_task(void);
 static uint8_t init_notify_task(void);
 static void ui_load_menu(void);
 static void ui_menu_select(void);
+static void ui_menu_long_select(void);
 static void ui_menu_back(void);
-static void ui_print_mac_address_string(char* dest);
+static void ui_print_mac_address_string(char *dest);
+static void ui_print_net_token(char *dest);
+static void ui_print_net_token_cursor(char *dest, uint8_t pos);
+static void ui_print_net_status(char *dest);
 static void ui_menu_load_enabled_status(bool is_enabled);
 /*********************************************************************/
 
@@ -286,6 +309,16 @@ static void ui_increment_menu_position(void)
             }
             xTaskNotifyGive(s_screen_task_handle);
             break;
+        case NETWORK_TOKEN_MENU:
+            screen[(menu_pos%3)+2][0] = ' ';
+            menu_pos++;
+            if(menu_pos > menus[active_menu].cursor_max)
+            {
+                menu_pos = menus[active_menu].cursor_min;
+            }
+            screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
         case MAIN_MENU:
         case GPS_MENU:
         case SENSOR_MODE_MENU:
@@ -323,8 +356,9 @@ static portTASK_FUNCTION(btn_task, param)
     uint32_t neg_edges = 0;
 
     // keeps track of back button long press
-    BaseType_t last_back_btn_down_tick = xTaskGetTickCount();
-    bool was_longpress_back = false;
+    BaseType_t last_back_btn_down_tick = xTaskGetTickCount(),
+        last_sel_btn_down_tick = xTaskGetTickCount();
+    bool was_longpress_back = false, was_longpress_select = false;
 
 
     // init button states
@@ -345,7 +379,14 @@ static portTASK_FUNCTION(btn_task, param)
         // SELECT button up
         if(pos_edges & SEL_BTN_MASK)
         {
-            ui_menu_select();
+            if (!was_longpress_select) ui_menu_select();
+            was_longpress_select = false;
+        }
+
+        // DOWN button up
+        if(pos_edges & DOWN_BTN_MASK)
+        {
+            ui_increment_menu_position();
         }
 
         // BACK button up
@@ -359,10 +400,24 @@ static portTASK_FUNCTION(btn_task, param)
             was_longpress_back = false;
         }
 
-        // DOWN button up
-        if(pos_edges & DOWN_BTN_MASK)
+
+        // SELECT button down
+        if(neg_edges & SEL_BTN_MASK)
         {
-            ui_increment_menu_position();
+            last_sel_btn_down_tick = xTaskGetTickCount();
+        }
+
+        // SELECT button long press
+        if(~btn_states & SEL_BTN_MASK)
+        {
+            uint32_t seconds_since_last_depress = ((uint32_t)(xTaskGetTickCount() - last_sel_btn_down_tick)) * portTICK_PERIOD_MS/1000;
+            if(seconds_since_last_depress > 1)
+            {
+                // Refresh time latch
+                last_sel_btn_down_tick = xTaskGetTickCount();
+                was_longpress_select = true;
+                ui_menu_long_select();
+            }
         }
 
         // BACK button down
@@ -593,6 +648,15 @@ static void ui_load_menu(void)
             ui_menu_load_ack_mode_enabled();
             xTaskNotifyGive(s_screen_task_handle);
             break;
+        case NETWORK_TOKEN_MENU:
+            strncpy(screen[0], network_token_menu_title, LCD_COLUMNS);
+            ui_print_net_token_cursor(screen[1], token_edit_mode ? token_place : -1);
+            screen[1][0] = token_state == LL_NT_STATE_UNSET ? ' ' : token_state == LL_NT_STATE_SUCCESS ? SMILE_GLYPH : ERROR_GLYPH;
+            ui_print_net_token(screen[2]);
+            ui_print_net_status(screen[3]);
+            screen[(menu_pos%3)+2][0] = CURSOR_GLYPH;
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
         default:
             EFM_ASSERT(false);
             break;
@@ -747,6 +811,50 @@ static void ui_menu_select_ack_mode_menu(void)
     xTaskNotifyGive(s_screen_task_handle);
 }
 
+static void ui_menu_select_net_token_mod(void)
+{
+    uint8_t app_token[APP_TOKEN_LEN], qos;
+    enum ll_downlink_mode dl_mode;
+
+    switch (menu_pos) {
+        case CURSOR_LINE_1: // Configure Network Token
+            if (!token_edit_mode) {
+                ll_config_get(&temp_token, app_token, &dl_mode, &qos);
+                token_edit_mode = true;
+                token_state = LL_NT_STATE_UNSET;
+            } else {
+                temp_token += (1 << (4 * token_place));
+            }
+
+            ui_refresh_display();
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
+        case CURSOR_LINE_2: // Apply Button
+            if (token_edit_mode)
+            {
+                token_edit_mode = false;
+                token_state = ll_config_set(temp_token, app_token, dl_mode, qos) == 0 ? LL_NT_STATE_SUCCESS : LL_NT_STATE_FAILED;
+                ui_refresh_display();
+                xTaskNotifyGive(s_screen_task_handle);
+            }
+            break;
+        default:
+            EFM_ASSERT(0);
+            break;
+    }
+}
+
+static void ui_menu_long_select_net_token_mod(void)
+{
+    switch (menu_pos) {
+        case CURSOR_LINE_1: // Configure Network Token
+            token_place = token_place >= 7 ? 0 : token_place + 1;
+            ui_refresh_display();
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
+    }
+}
+
 static void ui_menu_select_main_menu(void)
 {
     switch(menu_pos)    // main menu: set menu variables and go into next menu
@@ -815,6 +923,13 @@ static void ui_menu_select_main_menu(void)
             active_menu = ACK_MODE_DIAG_MENU;
             ui_load_menu();
             break;
+        case CURSOR_LINE_10:
+            menu_pos = 0;
+            menu_mode = 0;
+            update_rate = 0;
+            active_menu = NETWORK_TOKEN_MENU;
+            ui_load_menu();
+            break;
         default:
             break;
     }
@@ -845,6 +960,28 @@ static void ui_menu_select(void)
         case ACK_MODE_DIAG_MENU:
             ui_menu_select_ack_mode_menu();
             break;
+        case NETWORK_TOKEN_MENU:
+            ui_menu_select_net_token_mod();
+            break;
+        default:
+            break;
+    }
+}
+
+static void ui_menu_long_select(void)
+{
+    switch(active_menu)
+    {
+        case NETWORK_TOKEN_MENU:
+            ui_menu_long_select_net_token_mod();
+            break;
+        case MAIN_MENU:
+        case GPS_MENU:
+        case SENSOR_MODE_MENU:
+        case DOWNLINK_MENU:
+        case UART_PASS_DIAG_MENU:
+        case DRIVE_MODE_DIAG_MENU:
+        case ACK_MODE_DIAG_MENU:
         default:
             break;
     }
@@ -875,6 +1012,10 @@ static void ui_menu_back(void)
         case ACK_MODE_DIAG_MENU:
             ui_menu_back_common();
             break;
+        case NETWORK_TOKEN_MENU:
+            token_state = LL_NT_STATE_UNSET;
+            ui_menu_back_common();
+            break;
         case MAIN_MENU:
             lcd_bklt_toggle();
             break;
@@ -887,6 +1028,36 @@ static void ui_menu_back(void)
 static void ui_print_mac_address_string(char* dest)
 {
     sprintf(dest,"$301$0-0-0-%09X", (unsigned int)sup_get_MAC_address());
+}
+
+static void ui_print_net_token(char *dest)
+{
+    if (token_edit_mode)
+    {
+        sprintf(dest, " NetToken: %08" PRIx32, (long unsigned int)temp_token);
+    } else {
+        uint32_t net_token;
+        ll_config_get(&net_token, NULL, NULL, NULL); // short circuit hack
+        sprintf(dest, " NetToken: %08X", (unsigned int)net_token);
+    }
+}
+
+static void ui_print_net_token_cursor(char *dest, uint8_t pos)
+{
+    char x[] = "                    ";
+    x[18-pos] = '_';
+    sprintf(dest, x);
+}
+
+static void ui_print_net_status(char *dest)
+{
+    if (token_edit_mode)
+    {
+        sprintf(dest, " Apply");
+    } else {
+        sprintf(dest, token_state == LL_NT_STATE_UNSET ? " Apply" : token_state == LL_NT_STATE_SUCCESS ?
+            " Apply | ok" : " Apply | failed");
+    }
 }
 /*********************************************************************/
 /*****PUBLIC FUNCTIONS************************************************/
