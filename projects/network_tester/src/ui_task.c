@@ -4,6 +4,7 @@
 // \file    ui_task.c
 // \brief   User Interface tasks
 // \author  Mark Bloechl
+// \author  Thomas Steinholz
 // \version 0.0.1
 //
 // \copyright LinkLabs, 2015
@@ -97,12 +98,6 @@ typedef enum
 } net_token_state_t;
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
-// downlink band configs
-const llabs_dl_band_cfg_t FCC         = { 902000000, 928000000, 386703, 3, 0 };
-const llabs_dl_band_cfg_t BRAZIL      = { 916000000, 928000000, 386703, 3, 0 };
-const llabs_dl_band_cfg_t AUSTRALIA   = { 918000000, 926000000, 386703, 3, 0 };
-const llabs_dl_band_cfg_t NEW_ZEALAND = { 921000000, 928000000, 386703, 3, 0 };
-const llabs_dl_band_cfg_t ETSI        = { 869100000, 871000000, 386703, 1, 0 };
 // notification beeps
 const beep_t beeps[6] = {{LONG_BEEP_LENGTH_MS,LONG_BEEP_LENGTH_MS,1},
                          {SHORT_BEEP_LENGTH_MS,SHORT_BEEP_LENGTH_MS,1},
@@ -677,26 +672,53 @@ static void ui_load_menu(void)
             menu_pos_floor = (menu_pos/3) * 3;
             llabs_dl_band_cfg_t dl_band_cfg;
             int8_t active_pos;
-            if (ll_dl_band_cfg_get(&dl_band_cfg) != 0) {
-                if (dl_band_cfg.band_edge_lower == FCC.band_edge_lower)              active_pos = 0;
-                else if (dl_band_cfg.band_edge_lower == BRAZIL.band_edge_lower)      active_pos = 1;
-                else if (dl_band_cfg.band_edge_lower == AUSTRALIA.band_edge_lower)   active_pos = 2;
-                else if (dl_band_cfg.band_edge_lower == NEW_ZEALAND.band_edge_lower) active_pos = 3;
-                else if (dl_band_cfg.band_edge_lower == ETSI.band_edge_lower)        active_pos = 4;
-                else                                                                 active_pos = -1;
-            } else {
-                screen[0][LCD_COLUMNS-2] = ERROR_GLYPH;
-            }
+
             strncpy(screen[0], set_dl_band_title, LCD_COLUMNS);
             strncpy(screen[1], set_dl_band_text[menu_pos_floor], LCD_COLUMNS);
             strncpy(screen[2], set_dl_band_text[menu_pos_floor+1], LCD_COLUMNS);
             strncpy(screen[3], set_dl_band_text[menu_pos_floor+2], LCD_COLUMNS);
             screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
-            if (dl_band_set) {
+
+	    if (ll_dl_band_cfg_get(&dl_band_cfg) != 0)
+	    {
+                if (dl_band_cfg.band_edge_lower == DL_BAN_FCC.band_edge_lower)
+		{
+		    active_pos = CURSOR_LINE_1;
+		}
+		else if (dl_band_cfg.band_edge_lower == DL_BAN_BRA.band_edge_lower)
+		{
+		    active_pos = CURSOR_LINE_2;
+		}
+		else if (dl_band_cfg.band_edge_lower == DL_BAN_AUS.band_edge_lower)
+		{
+		    active_pos = CURSOR_LINE_3;
+		}
+		else if (dl_band_cfg.band_edge_lower == DL_BAN_NZL.band_edge_lower)
+		{
+		    active_pos = CURSOR_LINE_4;
+		}
+		else if (dl_band_cfg.band_edge_lower == DL_BAN_ETSI.band_edge_lower)
+		{
+		    active_pos = CURSOR_LINE_5;
+		}
+		else
+		{
+		    active_pos = -1;
+		}
+            }
+	    else
+	    {
+                screen[0][LCD_COLUMNS-2] = ERROR_GLYPH;
+            }
+
+	    if (dl_band_set)
+	    {
                 screen[(menu_pos%3)+1][LCD_COLUMNS-2] = dl_band_set_failed ? ERROR_GLYPH : SMILE_GLYPH;
                 dl_band_set = false;
                 dl_band_set_failed = false;
-            } else {
+            }
+	    else
+	    {
                 if ((active_pos < 3 && menu_pos <= 2) || (active_pos >= 3 && menu_pos >= 2)) // render the smile on the right page
                     screen[(active_pos%3)+1][LCD_COLUMNS-2] = SMILE_GLYPH;
             }
@@ -861,13 +883,17 @@ static void ui_menu_select_net_token_mod(void)
     uint8_t app_token[APP_TOKEN_LEN], qos;
     enum ll_downlink_mode dl_mode;
 
-    switch (menu_pos) {
+    switch (menu_pos)
+    {
         case CURSOR_LINE_1: // Configure Network Token
-            if (!token_edit_mode) {
+            if (!token_edit_mode)
+	    {
                 ll_config_get(&temp_token, app_token, &dl_mode, &qos);
                 token_edit_mode = true;
                 token_state = LL_NT_STATE_UNSET;
-            } else {
+            }
+	    else
+	    {
                 temp_token += (1 << (4 * token_place));
             }
 
@@ -891,7 +917,8 @@ static void ui_menu_select_net_token_mod(void)
 
 static void ui_menu_long_select_net_token_mod(void)
 {
-    switch (menu_pos) {
+    switch (menu_pos)
+    {
         case CURSOR_LINE_1: // Configure Network Token
             token_place = token_place >= 7 ? 0 : token_place + 1;
             ui_refresh_display();
@@ -900,14 +927,16 @@ static void ui_menu_long_select_net_token_mod(void)
     }
 }
 
-static void ui_menu_select_dl_band(void) {
+static void ui_menu_select_dl_band(void)
+{
     llabs_dl_band_cfg_t dl_band_cfg;
-    switch (menu_pos) {
-        case CURSOR_LINE_1: dl_band_cfg = FCC;         break;
-        case CURSOR_LINE_2: dl_band_cfg = BRAZIL;      break;
-        case CURSOR_LINE_3: dl_band_cfg = AUSTRALIA;   break;
-        case CURSOR_LINE_4: dl_band_cfg = NEW_ZEALAND; break;
-        case CURSOR_LINE_5: dl_band_cfg = ETSI;        break;
+    switch (menu_pos)
+    {
+        case CURSOR_LINE_1: dl_band_cfg = DL_BAN_FCC;  break;
+        case CURSOR_LINE_2: dl_band_cfg = DL_BAN_BRA;  break;
+        case CURSOR_LINE_3: dl_band_cfg = DL_BAN_AUS;  break;
+        case CURSOR_LINE_4: dl_band_cfg = DL_BAN_NZL;  break;
+        case CURSOR_LINE_5: dl_band_cfg = DL_BAN_ETSI; break;
         default: break;
     }
     dl_band_set_failed = ll_dl_band_cfg_set(&dl_band_cfg) != 0;
@@ -1131,7 +1160,9 @@ static void ui_print_net_status(char *dest)
     if (token_edit_mode)
     {
         sprintf(dest, " Apply");
-    } else {
+    }
+    else
+    {
         sprintf(dest, token_state == LL_NT_STATE_UNSET ? " Apply" : token_state == LL_NT_STATE_SUCCESS ?
             " Apply | ok" : " Apply | failed");
     }

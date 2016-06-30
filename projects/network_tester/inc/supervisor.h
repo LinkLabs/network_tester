@@ -21,6 +21,12 @@ typedef struct
 
 /*********************************************************************/
 /*****PUBLIC DEFS*****************************************************/
+// downlink band configs
+extern const llabs_dl_band_cfg_t DL_BAN_FCC;  // USA / Mexico
+extern const llabs_dl_band_cfg_t DL_BAN_BRA;  // Brazil
+extern const llabs_dl_band_cfg_t DL_BAN_AUS;  // Australia
+extern const llabs_dl_band_cfg_t DL_BAN_NZL;  // New Zealand
+extern const llabs_dl_band_cfg_t DL_BAN_ETSI; // Europe
 /*****PUBLIC FUNCTIONS************************************************/
 void sup_get_gw_status(llabs_network_info_t* gw_info_ptr);
 bool sup_get_GW_rssi(int16_t* rssi_ptr);    // returns true if GW connected, false otherwise.  Stores RSSI in rssi_ptr if GW connected

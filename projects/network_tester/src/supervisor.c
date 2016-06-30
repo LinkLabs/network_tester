@@ -1,9 +1,10 @@
 /*********************************************************************/
 /*********************************************************************/
 //
-// \file    ui_task.c
-// \brief   User Interface tasks
+// \file    supervisor.c
+// \brief   Supervisor Task
 // \author  Mark Bloechl
+// \author  Thomas Steinholz
 // \version 0.0.1
 //
 // \copyright LinkLabs, 2015
@@ -68,18 +69,6 @@
 #define APP_TOKEN_LEVEREGE     0xd6, 0x84, 0x2f, 0x77, 0x4f, 0xe1, 0x7d, 0x8d, 0x0e, 0x81
 
 #define LLABS_DL_CHAN_SPACING             (526595)
-
-#define USE_BAND_915_MHZ
-#ifdef USE_BAND_915_MHZ
-    #define BAND_EDGE_LOWER  (902000000)
-    #define BAND_EDGE_UPPER  (928000000)
-    #define CHAN_STEP_SIZE   (3)
-#else
-    #define BAND_EDGE_LOWER  (869100000)
-    #define BAND_EDGE_UPPER  (871000000)
-    #define CHAN_STEP_SIZE   (1)
-#endif
-#define BAND_EDGE_GUARD  (386703)
 /*********************************************************************/
 
 
@@ -156,7 +145,11 @@ static const char* sup_cmd_strings[NUM_SUP_EVENTS] = {
 
 #endif
 
-
+const llabs_dl_band_cfg_t DL_BAN_FCC  = { 902000000, 928000000, 386703, 3, 0 }; // USA / Mexico
+const llabs_dl_band_cfg_t DL_BAN_BRA  = { 916000000, 928000000, 386703, 3, 0 }; // Brazil
+const llabs_dl_band_cfg_t DL_BAN_AUS  = { 918000000, 926000000, 386703, 3, 0 }; // Australia
+const llabs_dl_band_cfg_t DL_BAN_NZL  = { 921000000, 928000000, 386703, 3, 0 }; // New Zealand
+const llabs_dl_band_cfg_t DL_BAN_ETSI = { 869100000, 871000000, 386703, 1, 0 }; // Europe
 /*********************************************************************/
 /*****CONSTANTS*******************************************************/
 
@@ -595,45 +588,23 @@ static bool sup_drive_mode_init(void)
     }
     else
     {
-        if (cfg.band_edge_lower == BAND_EDGE_LOWER &&
-            cfg.band_edge_guard == BAND_EDGE_GUARD &&
-            cfg.band_edge_upper == BAND_EDGE_UPPER &&
-            cfg.chan_step_size == 100 &&
-            cfg.chan_step_offset < 50)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return cfg.chan_step_size == 100 && cfg.chan_step_offset < 50;
     }
 }
 
 static void sup_dl_band_config(bool is_single_channel)
 {
-    int32_t ret = 0;
+    // load the dl band cfg
     llabs_dl_band_cfg_t cfg = {0};
-    Debug_Printf("Configuring DL Band...\n");
+    int32_t ret = ll_dl_band_cfg_get(&cfg);
+    EFM_ASSERT(ret >= 0);
 
     // get module's connection info
     ret = ll_net_info_get(&s_ll_vars.net_info);
     EFM_ASSERT(ret >= 0);
 
-    // configure new dl band
-    cfg.band_edge_lower = BAND_EDGE_LOWER;
-    cfg.band_edge_guard = BAND_EDGE_GUARD;
-    cfg.band_edge_upper = BAND_EDGE_UPPER;
-    if(!is_single_channel)
-    {
-        cfg.chan_step_offset = 0;
-        cfg.chan_step_size = CHAN_STEP_SIZE;
-    }
-    else
-    {
-        cfg.chan_step_offset = s_ll_vars.net_info.gateway_channel;
-        cfg.chan_step_size = 100;
-    }
+    cfg.chan_step_offset = is_single_channel ? s_ll_vars.net_info.gateway_channel : 0;
+    cfg.chan_step_size   = is_single_channel ? 100 : cfg.chan_step_size;
 
     // set new dl band in module
     ret = ll_dl_band_cfg_set(&cfg);
