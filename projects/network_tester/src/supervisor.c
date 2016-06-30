@@ -753,9 +753,6 @@ static void sup_ll_after_reset_state()
         // Set drive mode by reading dl_band_cfg
         s_is_drive_mode = sup_drive_mode_init();
 
-        // Set DL Band config to default
-        // sup_dl_band_config(s_is_drive_mode);
-
         // update display with module info
         ui_refresh_display();
 
