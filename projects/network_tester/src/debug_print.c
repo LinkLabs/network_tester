@@ -1,7 +1,7 @@
 /**
   * \file    debug.c
   * \brief   Debug library provide functions to use in develompent process.
-  * \author  Worldsensing  
+  * \author  Worldsensing
   *
   * \section License
   *          (C) Copyright 2013 Worldsensing, http://www.worldsensing.com
@@ -41,7 +41,7 @@ static char Debug_PrintBuf[DEBUG_PRINT_BUF_SIZE];
  */
 void Debug_PrintFunc(const char *p_string) {
     while (*p_string) {
-        ITM_SendChar(*p_string++);    
+        ITM_SendChar(*p_string++);
     }
 }
 
@@ -55,7 +55,7 @@ void Debug_PrintfFunc(const char * format, ...) {
     va_list arg;
     va_start(arg, format);
     vsnprintf(Debug_PrintBuf, DEBUG_PRINT_BUF_SIZE, (const char *) format, arg);
-    va_end(arg);                        
+    va_end(arg);
     Debug_PrintFunc(Debug_PrintBuf);
 }
 

@@ -1,37 +1,20 @@
-/*********************************************************************/
-/*********************************************************************/
-//
-// \file    sensor_task.c
-// \brief   Environmental and light sensor tasks
-// \author  Mark Bloechl
-// \version 0.0.1
-//
-// \copyright LinkLabs, 2015
-//
-/*********************************************************************/
-/*****INCLUDES********************************************************/
-//-----Standard Libraries-----//
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-//-----EFM Libraries-----//
 #include "em_chip.h"
-//-----My Libraries-----//
 #include "bsp.h"
 #include "bsp_watchdog.h"
 #include "iomap.h"
 #include "bme280_driver.h"
 #include "sensor_task.h"
 #include "ui_task.h"
-//-----FreeRTOS Libraries-----//
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "task_mgmt.h"
-/*********************************************************************/
-/*****DEFINES*********************************************************/
+
 #define I2C_BUS_PTR             I2C0
 #define SENSOR_POLL_PERIOD_MS   2000
 
@@ -53,24 +36,20 @@
 #define SENSOR_HUMIDITY_NUM_BITS   8
 #define SENSOR_TEMP_NUM_BITS       16
 #define SENSOR_PRESSURE_NUM_BITS   32
-/*********************************************************************/
-/*****TYPEDEFS/STRUCTS************************************************/
-/*********************************************************************/
-/*****CONSTANTS*******************************************************/
+
 const uint8_t BME280_init[] = {};
-/*********************************************************************/
-/*****VARIABLES*******************************************************/
+
 // rtos variables
 static xTaskHandle      s_sensor_task_handle;
 static wdg_handler_t    s_sensor_task_wdg_handler;
+
 // sensor variables
 bme280_data_t bme280_data;
 uint16_t light_data;    // light sensor data, in lux,
-/*****PRIVATE FUNCTION PROTOTYPES*************************************/
+
 static portTASK_FUNCTION_PROTO(sensor_task, param);
 static void sensor_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint32_t num_data_bits);
-/*********************************************************************/
-/*****PRIVATE FUNCTIONS***********************************************/
+
 static portTASK_FUNCTION(sensor_task, param)
 {
     (void) param;
@@ -87,7 +66,7 @@ static portTASK_FUNCTION(sensor_task, param)
         ui_display_sensor_diagnostics(&bme280_data, light_data);
     }
 }
-/*********************************************************************/
+
 static void sensor_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint32_t num_data_bits)
 {
     uint32_t byte_idx, bit_ofst, i;
@@ -122,12 +101,7 @@ static void sensor_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint3
         temp_dest>>=8;
     }
 }
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/
-/*****PUBLIC FUNCTIONS************************************************/
-/*********************************************************************/
-/*********************************************************************/
+
 uint8_t init_sensor_task(void)
 {
     if (pdPASS != xTaskCreate(sensor_task, (const portCHAR *)"sensor_task", SENSOR_TASK_STACK_SIZE, NULL, SENSOR_TASK_PRIORITY, &s_sensor_task_handle))
@@ -147,24 +121,21 @@ uint8_t init_sensor_task(void)
 
     return EXIT_SUCCESS;
 }
-/*********************************************************************/
+
 void sensor_build_packet(uint8_t* payload_bfr,uint8_t msg_num)
 {
     // load msg counter
-    sensor_bit_pack(payload_bfr,SENSOR_MSG_COUNT_IDX,(uint32_t)msg_num,SENSOR_MSG_COUNT_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_MSG_COUNT_IDX, (uint32_t)msg_num, SENSOR_MSG_COUNT_NUM_BITS);
     // load msg type
-    sensor_bit_pack(payload_bfr,SENSOR_MSG_TYPE_IDX,SENSOR_MSG_TYPE,SENSOR_MSG_TYPE_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_MSG_TYPE_IDX, SENSOR_MSG_TYPE, SENSOR_MSG_TYPE_NUM_BITS);
     // load motion state
-    sensor_bit_pack(payload_bfr,SENSOR_MOTION_IDX,0,SENSOR_MOTION_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_MOTION_IDX, 0, SENSOR_MOTION_NUM_BITS);
     // load light sensor data
-    sensor_bit_pack(payload_bfr,SENSOR_LIGHT_IDX,(uint32_t)(light_data>>1),SENSOR_LIGHT_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_LIGHT_IDX, (uint32_t)(light_data>>1), SENSOR_LIGHT_NUM_BITS);
     // load humidity data
-    sensor_bit_pack(payload_bfr,SENSOR_HUMIDITY_IDX,(uint32_t)bme280_data.humidity,SENSOR_HUMIDITY_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_HUMIDITY_IDX, (uint32_t)bme280_data.humidity, SENSOR_HUMIDITY_NUM_BITS);
     // load temperature data
-    sensor_bit_pack(payload_bfr,SENSOR_TEMP_IDX,(uint32_t)bme280_data.temp,SENSOR_TEMP_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_TEMP_IDX, (uint32_t)bme280_data.temp, SENSOR_TEMP_NUM_BITS);
     // load pressure data
-    sensor_bit_pack(payload_bfr,SENSOR_PRESSURE_IDX,bme280_data.pressure,SENSOR_PRESSURE_NUM_BITS);
+    sensor_bit_pack((char*)payload_bfr, SENSOR_PRESSURE_IDX, bme280_data.pressure, SENSOR_PRESSURE_NUM_BITS);
 }
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/

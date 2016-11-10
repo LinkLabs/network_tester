@@ -1,18 +1,9 @@
-//
-// \file    bsp_io.h
-// \brief   BSP IO Module Header.
-//          Device GPIO
-//
-// \copyright LinkLabs, 2015
-//
 #ifndef __BSP_IO_H__
 #define __BSP_IO_H__
 
-// Includes
 #include <stdbool.h>
 #include <stdint.h>
 
-// Types
 typedef enum
 {
     HW_REV3,
@@ -21,8 +12,6 @@ typedef enum
     HW_REV_UNKNOWN,
 } bsp_hw_rev_t;
 
-
-// Interface
 int8_t bsp_io_init(void);
 bsp_hw_rev_t bsp_hw_rev_get(void);
 

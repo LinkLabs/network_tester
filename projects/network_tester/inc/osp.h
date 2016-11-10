@@ -1,14 +1,8 @@
 #ifndef __OSP_H
 #define __OSP_H
 
-/************/
-/* Includes */
-/************/
 #include <stdint.h>
 
-/*********/
-/* Types */
-/*********/
 typedef struct{
     int32_t latitude;
     int32_t longitude;
@@ -19,11 +13,6 @@ typedef struct{
     uint8_t cnt;
 } gps_data_t;
 
-/***********************/
-/* Function Prototypes */
-/***********************/
-//int  osp_init(void);
-//void osp_task(void);
 void osp(uint8_t byte);
 void osp_get_latest(gps_data_t *gps_data);
 void osp_sw_version_poll();

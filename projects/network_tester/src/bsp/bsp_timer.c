@@ -1,14 +1,5 @@
-//
-// \file    bsp_timer.c
-// \brief   BSP Timer Module
-//          Provides configuration, control, and other functions for the timer(s) on the
-//          EFM32GG232F1024 mcu.
-//
-// \copyright LinkLabs, 2015
-//
 #define BSP_TIMER_C_
 
-// Includes ------------------------------------------------------------------
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,7 +15,6 @@
 
 #include "bsp_timer.h"
 #include "debug_print.h"
-//#include "interrupt.h"
 #include "iomap.h"
 
 // \addtogroup Modules
@@ -35,17 +25,11 @@
 //   @{
 //
 
-// Private macros ------------------------------------------------------------
-// Private types -------------------------------------------------------------
-// Private variables ---------------------------------------------------------
 static const uint8_t timer_prescale = timerPrescale16;
 
 static TIMER_Init_TypeDef s_timer_init; //!< Timer configuration struct
 static uint32_t s_timer_tick = 0;       //!< Timer tick for high resolution ticks
 
-// Private function prototypes -----------------------------------------------
-// Private functions ---------------------------------------------------------
-// Exported functions --------------------------------------------------------
 uint8_t bsp_tick_timer_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;

@@ -1,7 +1,6 @@
 #ifndef GPS_TASK_H_INCLUDED
 #define GPS_TASK_H_INCLUDED
-/*********************************************************************/
-/*****PUBLIC TYPES****************************************************/
+
 typedef struct
 {
     int32_t  latitude;
@@ -14,9 +13,9 @@ typedef struct
     uint8_t  fix_flag;
     uint32_t fix_age_s;
 } gps_fix_t;
-/*****PUBLIC FUNCTIONS************************************************/
+
 uint8_t init_gps_task(void);
 void gps_get_latest_fix(gps_fix_t* fix);
 void gps_build_packet(uint8_t* payload_bfr,uint8_t msg_num);
-/*********************************************************************/
+
 #endif /* GPS_TASK_H_INCLUDED */

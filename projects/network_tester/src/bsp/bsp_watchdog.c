@@ -1,15 +1,5 @@
-//
-// \file    bsp_watchdog.c
-// \brief   Watchdog Module must be controlling that the rest of the modules don't stuck
-//          in a permanent loop, or in a blocking state. If a fail in one task is detected system
-//          will be rebooted and watchdog should say which task has failed.
-//          Update the system hw watchdog.
-//
-// \copyright LinkLabs, 2015
-//
 #define WATCHDOG_C_
 
-// Includes ------------------------------------------------------------------
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -27,7 +17,6 @@
 #include "bsp.h"
 #include "bsp_watchdog.h"
 #include "debug_print.h"
-//#include "main.h"
 
 // \addtogroup Modules
 //   @{
@@ -42,7 +31,6 @@
 //#define CONFIG_NO_WATCHDOG_RESET
 
 
-// Private macros ------------------------------------------------------------
 #define WDG_REFRESHED    1u
 #define WDG_UNREFRESHED  0u
 
@@ -73,7 +61,6 @@
    } while (0)
 
 
-// Private types -------------------------------------------------------------
 typedef struct wdt_data {
     uint8_t       enabled:1;         //!< Watchdog is enabled
     uint8_t       refreshed:1;       //!< Watchdog has been refreshed WDG_REFRESHED or WDG_UNREFRESHED
@@ -90,7 +77,6 @@ typedef struct wdt {
 
 static xTaskHandle   s_wdog_task_handle;
 
-// Private variables ---------------------------------------------------------
 static wdg_t             wdg_table;
 static uint32_t          wdg_cycles = 0;
 static WDOG_Init_TypeDef s_wdg_hw_config = WDG_INIT_DEFAULT;
@@ -106,7 +92,6 @@ static bool              s_force_reset = false;
 uint32_t bootloader_magic[4] __attribute__ ((section (".__data_array__"))) = { 0 };
 #endif
 
-// Private function prototypes -----------------------------------------------
 static void wdg_hw_enable(void);
 static void wdg_hw_disable(void);
 
@@ -114,7 +99,6 @@ static void wdg_task(__attribute__((unused))  void *p_param);
 
 static void wdg_print_info(void);
 
-// Private functions ---------------------------------------------------------
 //
 // \brief Enable hardware watchdog
 //
@@ -131,7 +115,6 @@ static void wdg_hw_disable(void)
     WDOG_Enable(false);
 }
 
-// Exported functions --------------------------------------------------------
 //
 // \brief   Creates watchdog task and init necessary structs.
 //
@@ -147,7 +130,6 @@ uint8_t wdg_init(void)
     s_wdg_reset_cause = RMU_ResetCauseGet();
     RMU_ResetCauseClear();
 
-//    wdg_table.wdg_num = 0; //this disables the watchdog
     wdg_table.wdg_hw_enabled = WDG_ENABLED;
 
     for (i = 0; i < WDG_MAX_NUM; i++) {
@@ -250,15 +232,6 @@ void wdg_get_last_reset_info(uint32_t *p_lastResetCause, const char **p_wdg_fail
 {
     *p_wdg_failed = NULL;
     *p_lastResetCause = s_wdg_reset_cause;
-
-/* Wdg_LastFailed is never set, so remove this unused code */
-#if 0
-    if (wdg_last_failed < wdg_table.wdg_num)
-    {  /* Note 1 */
-        *p_wdg_failed = wdg_table.wdg[wdg_last_failed].name_ptr;
-        (void) p_wdg_failed;                  /* Avoid compiler error */
-    }
-#endif
 }
 
 //

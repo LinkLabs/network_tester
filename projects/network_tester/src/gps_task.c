@@ -1,24 +1,9 @@
-/*********************************************************************/
-/*********************************************************************/
-//
-// \file    ui_task.c
-// \brief   User Interface tasks
-// \author  Mark Bloechl
-// \version 0.0.1
-//
-// \copyright LinkLabs, 2015
-//
-/*********************************************************************/
-/*****INCLUDES********************************************************/
-//-----Standard Libraries-----//
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-//-----EFM Libraries-----//
 #include "em_chip.h"
-//-----My Libraries-----//
 #include "iomap.h"
 #include "osp.h"
 #include "gps_task.h"
@@ -30,17 +15,15 @@
 #include "iomap.h"
 #include "ll_ifc.h"
 #include "supervisor.h"
-//-----FreeRTOS Libraries-----//
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "task_mgmt.h"
-/*********************************************************************/
 
-/*****DEFINES*********************************************************/
 #define OSP_DATA_READY      (0x01)
 #define GPS_FIX_TIMEOUT_S   90      // amount of time to wait for fix before resetting GPS
 #define GPS_RESET_DELAY_MS  200     // amount of time to hold GPS in reset
+
 // GPS payload parameters
 #define GPS_MSG_TYPE            0
 
@@ -65,17 +48,7 @@
 #define ALT_MIN                 (-4096)
 #define RSSI_MAX                0
 #define RSSI_MIN                (-126)
-/*********************************************************************/
 
-/*****TYPEDEFS/STRUCTS************************************************/
-
-/*********************************************************************/
-
-/*****CONSTANTS*******************************************************/
-
-/*********************************************************************/
-
-/*****VARIABLES*******************************************************/
 // rtos variables
 static xTaskHandle          s_gps_task_handle;
 static wdg_handler_t        s_gps_task_wdg_handler;
@@ -86,15 +59,11 @@ static uint32_t gps_idx = 0;
 static gps_data_t gps_data;
 static gps_fix_t gps_fix;   // gps data + age of fix indicator
 static TickType_t last_fix_tick;
-/*********************************************************************/
 
-/*****PRIVATE FUNCTION PROTOTYPES*************************************/
 static portTASK_FUNCTION_PROTO(gps_task, param);
 static void gps_rx_int_callback(char byte);
 static void gps_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint32_t num_data_bits);
-/*********************************************************************/
 
-/*****PRIVATE FUNCTIONS***********************************************/
 // decodes gps data, updates gps structure
 static portTASK_FUNCTION(gps_task, param)
 {
@@ -152,7 +121,7 @@ static portTASK_FUNCTION(gps_task, param)
         ui_display_gps_diagnostics(&gps_fix);
     }
 }
-/*********************************************************************/
+
 static void gps_rx_int_callback(char byte)
 {
     BaseType_t xHigherPriorityTaskWoken;
@@ -166,7 +135,7 @@ static void gps_rx_int_callback(char byte)
         portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
     }
 }
-/*********************************************************************/
+
 static void gps_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint32_t num_data_bits)
 {
     uint32_t byte_idx, bit_ofst, i;
@@ -206,8 +175,7 @@ static void gps_bit_pack(char* dest_bfr,uint32_t bit_idx,uint32_t data, uint32_t
         temp_dest>>=8;
     }
 }
-/*********************************************************************/
-/*****PUBLIC FUNCTIONS************************************************/
+
 uint8_t init_gps_task(void)
 {
     if (pdPASS != xTaskCreate(gps_task, (const portCHAR *)"gps_task", GPS_TASK_STACK_SIZE, NULL, GPS_TASK_PRIORITY, &s_gps_task_handle))
@@ -232,23 +200,21 @@ uint8_t init_gps_task(void)
     return EXIT_SUCCESS;
 }
 
-/*********************************************************************/
 void gps_get_latest_fix(gps_fix_t* fix)
 {
     *fix = gps_fix;
 }
 
-/*********************************************************************/
 void gps_build_packet(uint8_t* payload_bfr, uint8_t msg_num)
 {
     int16_t temp;
 
     if(gps_fix.fix_flag)
     {
-        gps_bit_pack(payload_bfr,GPS_MSG_COUNT_IDX,msg_num,GPS_MSG_COUNT_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_MSG_TYPE_IDX,GPS_MSG_TYPE,GPS_MSG_TYPE_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_LATITUDE_IDX,(uint32_t)(gps_fix.latitude/100),GPS_LATITUDE_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_LONGITUDE_IDX,(uint32_t)(gps_fix.longitude/100),GPS_LONGITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_MSG_COUNT_IDX, msg_num,GPS_MSG_COUNT_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_MSG_TYPE_IDX, GPS_MSG_TYPE,GPS_MSG_TYPE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_LATITUDE_IDX, (uint32_t)(gps_fix.latitude/100), GPS_LATITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_LONGITUDE_IDX, (uint32_t)(gps_fix.longitude/100), GPS_LONGITUDE_NUM_BITS);
         temp = gps_fix.altitude + GPS_ALTITUDE_OFFSET_M;
         if(temp > ALT_MAX)
         {
@@ -258,7 +224,7 @@ void gps_build_packet(uint8_t* payload_bfr, uint8_t msg_num)
         {
             temp = ALT_MIN;
         }
-        gps_bit_pack(payload_bfr,GPS_ALTITUDE_IDX,(uint32_t)(temp),GPS_ALTITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_ALTITUDE_IDX, (uint32_t)(temp), GPS_ALTITUDE_NUM_BITS);
         sup_get_GW_rssi(&temp);
         if(temp > RSSI_MAX)
         {
@@ -269,15 +235,15 @@ void gps_build_packet(uint8_t* payload_bfr, uint8_t msg_num)
             temp = RSSI_MIN;
         }
         temp *= -1;
-        gps_bit_pack(payload_bfr,GPS_RSSI_IDX,(uint32_t)(temp),GPS_RSSI_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_RSSI_IDX, (uint32_t)(temp), GPS_RSSI_NUM_BITS);
     }
     else
     {
-        gps_bit_pack(payload_bfr,GPS_MSG_COUNT_IDX,msg_num,GPS_MSG_COUNT_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_MSG_TYPE_IDX,GPS_MSG_TYPE,GPS_MSG_TYPE_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_LATITUDE_IDX,0xFFFFFFFF,GPS_LATITUDE_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_LONGITUDE_IDX,0xFFFFFFFF,GPS_LONGITUDE_NUM_BITS);
-        gps_bit_pack(payload_bfr,GPS_ALTITUDE_IDX,0xFFFFFFFF,GPS_ALTITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_MSG_COUNT_IDX, msg_num, GPS_MSG_COUNT_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_MSG_TYPE_IDX, GPS_MSG_TYPE, GPS_MSG_TYPE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_LATITUDE_IDX, 0xFFFFFFFF, GPS_LATITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_LONGITUDE_IDX, 0xFFFFFFFF, GPS_LONGITUDE_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_ALTITUDE_IDX, 0xFFFFFFFF, GPS_ALTITUDE_NUM_BITS);
         sup_get_GW_rssi(&temp);
         if(temp > RSSI_MAX)
         {
@@ -288,8 +254,6 @@ void gps_build_packet(uint8_t* payload_bfr, uint8_t msg_num)
             temp = RSSI_MIN;
         }
         temp *= -1;
-        gps_bit_pack(payload_bfr,GPS_RSSI_IDX,(uint32_t)(temp),GPS_RSSI_NUM_BITS);
+        gps_bit_pack((char*)payload_bfr, GPS_RSSI_IDX, (uint32_t)(temp), GPS_RSSI_NUM_BITS);
     }
 }
-/*********************************************************************/
-/*********************************************************************/

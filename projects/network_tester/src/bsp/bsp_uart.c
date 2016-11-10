@@ -1,24 +1,14 @@
-//
-// \file    bsp_uart.c
-// \brief   USART module high level functions and interfaces.
-//
-// \copyright LinkLabs, 2015
-//
 #define UART_C_
 
-// Includes
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 #include "em_chip.h"
 #include "em_cmu.h"
 #include "em_usart.h"
-
 #include "FreeRTOS.h"
 #include "timers.h"
-
 #include "bsp.h"
 #include "bsp_uart.h"
 #include "bsp_timer.h"
@@ -26,15 +16,12 @@
 #include "iomap.h"
 #include "bsp_io.h"
 #include "byte_fifo.h"
+#include "ll_ifc_utils.h"
 
-
-// Types
 typedef void (*usart_irq_callback_t)(char);
 
-// Static Global Variables
 usart_irq_callback_t s_usart_rx_callbacks[3] = {NULL};
 
-//static USART_TypeDef *module_uart = IOMAP_MODULE_UART;
 static USART_TypeDef *gps_uart = IOMAP_GPS_UART;
 
 byte_fifo_t s_modfifo_rx; //!< Buffer used to temporarily store bytes incoming from uart ifc, take modified only at main level, put modified only at ISR level
@@ -45,20 +32,13 @@ byte_fifo_t s_userfifo_tx; //!< Buffer used to temporarily store bytes incoming 
 static bool s_is_ll_bypass = false;                         //!< Variables used for bypassing net tester UART to module
 static usart_irq_callback_t s_ll_bypass_callback = NULL;    //!< Variables used for bypassing net tester UART to module
 
-// Static Forward Declarations
 static uint32_t irq_handler_bsp_uart_module_tx(uint32_t in);
 static uint32_t irq_handler_bsp_uart_module_notify(uint32_t in);
-
-
-
-
-
 
 // NOTE that this is a ram function, since it can be called when the flash variables are being
 // written to. Thus, all functions called from here have to either be ram variables also or
 // be inlined.
-static uint32_t irq_handler_bsp_uart_module_rx(uint32_t in) __attribute__ ((section(".ram")));
-static uint32_t irq_handler_bsp_uart_module_rx(uint32_t in)
+LL_RAM_FUNC static uint32_t irq_handler_bsp_uart_module_rx(uint32_t in)
 {
     // Clear interrupt flag
     uint32_t flags = USART_IntGet(IOMAP_MODULE_UART);
@@ -102,24 +82,10 @@ static uint32_t irq_handler_bsp_uart_module_tx(uint32_t in)
 
 static uint32_t irq_handler_bsp_uart_module_notify(uint32_t in)
 {
-//    portBASE_TYPE higher_priority_task_woken = pdFALSE;
-
     NVIC_ClearPendingIRQ(DAC0_IRQn);
-
-//    // Notify the host_ifc task that new bytes are available on s_rx_fifo
-//    if (pdTRUE != xTaskNotifyFromISR(s_module_task_handle, 0, eNoAction, &higher_priority_task_woken))
-//    {
-//        Debug_Printf("ASSERT: Unable to notify host_ifc task\n");
-//        LL_ASSERT(false);
-//    }
-//
-//    // If we woke any tasks we may require a context switch.
-//    portYIELD_FROM_ISR(higher_priority_task_woken);
-
     return(in);
 }
-/*********************************************************************/
-/*****PUBLIC FUNCTIONS************************************************/
+
 int32_t bsp_uart_module_tx(uint8_t *buff, uint16_t len)
 {
     int32_t i32_ret = 0;
@@ -132,7 +98,7 @@ int32_t bsp_uart_module_tx(uint8_t *buff, uint16_t len)
 
     return i32_ret;
 }
-/*********************************************************************/
+
 /**
  * @brief
  *  Get a byte from the RX queue, timing out if we exceed the timeout period.
@@ -181,7 +147,6 @@ int32_t bsp_uart_user_rx(uint8_t *rx_byte)
     return -1;
 }
 
-/*********************************************************************/
 uint8_t bsp_uart_init(bsp_uart_t uart)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -268,7 +233,7 @@ uint8_t bsp_uart_init(bsp_uart_t uart)
         }
         else
         {
-            EFM_ASSERT(false);
+            LL_ASSERT(false);
         }
     }
     else if (BSP_USER_UART == uart)
@@ -288,7 +253,6 @@ uint8_t bsp_uart_init(bsp_uart_t uart)
             USART_IntClear(USART0, _USART_IF_MASK);
             USART_IntEnable(USART0, USART_IF_RXDATAV);
             NVIC_ClearPendingIRQ(USART0_RX_IRQn);
-            //NVIC_SetPriority(USART0_RX_IRQn, configMAX_SYSCALL_INTERRUPT_PRIORITY);
             NVIC_EnableIRQ(USART0_RX_IRQn);
             NVIC_EnableIRQ(USART0_TX_IRQn);
             // enable UART
@@ -301,7 +265,7 @@ uint8_t bsp_uart_init(bsp_uart_t uart)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 
     return ret;
@@ -327,7 +291,7 @@ void bsp_module_bypass_enable(bool enable, void(hook)(char))
     s_is_ll_bypass = enable;
     s_ll_bypass_callback = hook;
 }
-/*********************************************************************/
+
 int32_t transport_write(uint8_t *buff, uint16_t len)
 {
     int32_t i32_ret;
@@ -340,7 +304,7 @@ int32_t transport_write(uint8_t *buff, uint16_t len)
 
     return 0;
 }
-/*********************************************************************/
+
 /*
  * Return:
  *  0 if len bytes were read before the timeout time,
@@ -376,8 +340,20 @@ int32_t transport_read(uint8_t *buff, uint16_t len)
     return(-1);
 }
 
-/*********************************************************************/
-/*****INTERRUPT HANDLERS**********************************************/
+int32_t gettime(struct time *tp)
+{
+    TickType_t systime = xTaskGetTickCountFromISR() * portTICK_RATE_MS;
+    tp->tv_sec = systime / 1000;
+    tp->tv_nsec = (systime * 1000000) % (tp->tv_sec * 1000000000);
+    return 0;
+}
+
+int32_t sleep_ms(int32_t millis)
+{
+    vTaskDelay(millis / portTICK_PERIOD_MS);
+    return 0;
+}
+
 void USART0_RX_IRQHandler(void)
 {
     char data = (char) (USART0->RXDATA);
@@ -416,7 +392,7 @@ void USART2_RX_IRQHandler(void)
         s_usart_rx_callbacks[2](temp);
     }
 }
-/*********************************************************************/
+
 void USART1_TX_IRQHandler(void)
 {
     irq_handler_bsp_uart_module_tx(0);
@@ -444,6 +420,5 @@ void USART0_TX_IRQHandler(void)
     }
 }
 
-/*********************************************************************/
 // @} (end addtogroup UART)
 // @} (end addtogroup Modules)

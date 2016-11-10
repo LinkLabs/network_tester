@@ -30,6 +30,7 @@ LST_DIR = lst
 #WINDOWSCS  ?= GNU Tools ARM Embedded\4.7 2012q4
 WINDOWSCS  ?= GNU Tools ARM Embedded\4.8 2014q3
 LINUXCS    ?= /opt/gcc-arm-none-eabi-4_8-2014q3
+APPLECS    ?= /usr/local
 
 RMDIRS     := rm -rf
 RMFILES    := rm -rf
@@ -39,8 +40,15 @@ SHELLNAMES := $(ComSpec)$(COMSPEC)
 
 # Try autodetecting the environment
 ifeq ($(SHELLNAMES),)
-  # Assume we are making on a Linux platform
-  TOOLDIR := $(LINUXCS)
+  UNAME_S := $(shell uname -s)
+  ifeq ($(UNAME_S),Linux)
+    TOOLDIR := $(LINUXCS)
+  endif
+
+  ifeq ($(UNAME_S),Darwin)
+    TOOLDIR := $(APPLECS)
+  endif
+# Assume we are making on a Linux platform
 else ifeq ($(shell hostname), rluna-PC)
   TOOLDIR := C:/arm/4.8.3
   NULLDEVICE := NUL
@@ -103,7 +111,7 @@ DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
 #
 # Add -Wa,-ahld=$(LST_DIR)/$(@F:.o=.lst) to CFLAGS to produce assembly list files
 #
-override CFLAGS += -D$(DEVICE) -Wall -Wextra -mcpu=cortex-m3 -mthumb \
+override CFLAGS += -D$(DEVICE) -Wall -Wextra -std=c99 -mcpu=cortex-m3 -mthumb \
 -mfix-cortex-m3-ldrd -ffunction-sections \
 -fdata-sections -fomit-frame-pointer \
 $(DEPFLAGS)
@@ -156,8 +164,8 @@ src/bme280_driver.c \
 src/tsl4531_driver.c \
 src/supervisor.c \
 src/osp.c \
-src/bsp_trace.c\
-src/byte_fifo.c\
+src/bsp_trace.c \
+src/byte_fifo.c \
 $(MODULE_DIR)/EFM32GG/Source/system_efm32gg.c \
 $(MODULE_DIR)/emlib/src/em_aes.c \
 $(MODULE_DIR)/emlib/src/em_assert.c \
@@ -180,9 +188,12 @@ $(MODULE_DIR)/efm_utils/src/efm_temperature.c \
 $(MODULE_DIR)/efm_utils/src/gpiointerrupt.c \
 $(MODULE_DIR)/efm_utils/src/sleep.c \
 $(MODULE_DIR)/ifc_lib/src/ll_ifc.c \
+$(MODULE_DIR)/ifc_lib/src/ll_ifc_utils.c \
 $(MODULE_DIR)/ifc_lib/src/ll_ifc_no_mac.c \
 $(MODULE_DIR)/ifc_lib/src/ll_ifc_symphony.c \
 $(MODULE_DIR)/ifc_lib/src/ifc_struct_defs.c \
+$(MODULE_DIR)/ifc_lib/src/ll_ifc_ftp.c \
+$(MODULE_DIR)/ifc_lib/src/ll_ifc_xmodem.c \
 $(MODULE_DIR)/FreeRTOS_v8_2_0/src/croutine.c \
 $(MODULE_DIR)/FreeRTOS_v8_2_0/src/list.c \
 $(MODULE_DIR)/FreeRTOS_v8_2_0/src/queue.c \
@@ -225,7 +236,7 @@ debug:    LDFLAGS += -T$(MODULE_DIR)/EFM32GG/Source/GCC/efm32gg.ld
 debug:    $(EXE_DIR)/$(PROJECTNAME).bin
 
 release:  CFLAGS += -DDEBUG -DLL_EMBEDDED -DUSE_FREERTOS -O0 -g
-release:  LDFLAGS += -T$(MODULE_DIR)/EFM32GG/Source/GCC/efm32gg_w_bootloader.ld
+release:  LDFLAGS += -Tnetwork_tester.ld
 release:  $(EXE_DIR)/$(PROJECTNAME).bin
 
 # Create objects from C SRC files

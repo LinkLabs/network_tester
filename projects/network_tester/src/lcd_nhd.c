@@ -1,29 +1,20 @@
-/*****INCLUDES********************************************************/
 #include "em_device.h"
 #include "em_gpio.h"
 #include "em_cmu.h"
 #include "iomap.h"
 #include "bsp_io.h"
 #include "lcd_nhd.h"
-/*****DEFINES*********************************************************/
+
 #define LCD_CLEAR_CMD           0x01
 #define LCD_HOME_CMD            0x02
 #define LCD_SET_CURSOR_CMD      0x80
 #define LCD_BUSY_FLAG           0x80
 #define LCD_CG_COUNTER_CMD      0x40
-/*********************************************************************/
-/*****TYPEDEFS********************************************************/
 
-/*********************************************************************/
-/*****VARIABLES*******************************************************/
-
-/*********************************************************************/
-/*****PRIVATE FUNCTION PROTOTYPES*************************************/
 static void lcd_delay(uint32_t dly_ticks);
 static void lcd_write_cmd(uint8_t data);
 static void lcd_write_data(uint8_t data);
-/*********************************************************************/
-/*****FUNCTIONS*******************************************************/
+
 void lcd_init(void)
 {
     lcd_delay(20000);      // Wait >15 msec after power is applied
@@ -41,7 +32,7 @@ void lcd_init(void)
     lcd_delay(7000);
     lcd_write_cmd(0x0C);    // Display ON; Cursor ON and blinking
 }
-/*********************************************************************/
+
 void lcd_write_line(char* text,uint8_t line)
 {
     uint32_t i;
@@ -79,7 +70,7 @@ void lcd_write_line(char* text,uint8_t line)
         }
     }
 }
-/*********************************************************************/
+
 void lcd_write_screen(char screen[][20])
 {
     uint32_t i;
@@ -88,7 +79,7 @@ void lcd_write_screen(char screen[][20])
         lcd_write_line(screen[i],i);
     }
 }
-/*********************************************************************/
+
 void lcd_write_character(char character,uint8_t line,uint8_t column)
 {
     uint8_t start_addr;
@@ -112,12 +103,12 @@ void lcd_write_character(char character,uint8_t line,uint8_t column)
     lcd_write_cmd(LCD_SET_CURSOR_CMD | start_addr);
     lcd_write_data(character);
 }
-/*********************************************************************/
+
 static void lcd_delay(uint32_t dly_ticks)
 {
     while(dly_ticks--);
 }
-/*********************************************************************/
+
 static void lcd_write_cmd(uint8_t data)
 {
     lcd_data(data);    //put data on output Port
@@ -127,7 +118,7 @@ static void lcd_write_cmd(uint8_t data)
     lcd_delay(80);       //enable pulse width >= 300ns
     lcd_e(0);          //Clock enable: falling edge
 }
-/*********************************************************************/
+
 static void lcd_write_data(uint8_t data)
 {
     lcd_data(data);    //put data on output Port
@@ -137,5 +128,3 @@ static void lcd_write_data(uint8_t data)
     lcd_delay(80);       //enable pulse width >= 300ns
     lcd_e(0);          //Clock enable: falling edge
 }
-/*********************************************************************/
-/*********************************************************************/

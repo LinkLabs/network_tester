@@ -1,18 +1,7 @@
-/**********************************************************************
-//
-// \file    bsp.c
-// \brief   BSP Module.
-//          System initialization and high-level peripheral control.
-//
-// \copyright LinkLabs, 2015
-*/
-/*********************************************************************/
-/*****INCLUDES********************************************************/
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-// EFM32 Support Includes
 #include "em_device.h"
 #include "em_chip.h"
 #include "em_cmu.h"
@@ -20,10 +9,8 @@
 #include "em_i2c.h"
 #include "em_usart.h"
 #include "em_dac.h"
-// my includes
 #include "debug_print.h"
 #include "iomap.h"
-//#include "interrupt.h"
 #include "lcd_nhd.h"
 #include "bsp.h"
 #include "bsp_io.h"
@@ -40,15 +27,6 @@
 //   @{
 //
 
-/*********************************************************************/
-/*****DEFINES*********************************************************/
-/*********************************************************************/
-/*****TYPEDEFS/STRUCTS************************************************/
-/*********************************************************************/
-/*****VARIABLES*******************************************************/
-
-/*********************************************************************/
-/*****PRIVATE FUNCTION PROTOTYPES*************************************/
 static uint8_t bsp_clock_init(void);
 static uint8_t bsp_gpio_init(void);
 static uint8_t bsp_module_uart_init(void);
@@ -56,8 +34,7 @@ static uint8_t bsp_gps_uart_init(void);
 static uint8_t bsp_user_uart_init(void);
 static uint8_t bsp_dac_init(void);
 static uint8_t bsp_lcd_init(void);
-/*********************************************************************/
-/*****PUBLIC FUNCTIONS************************************************/
+
 //
 // \brief   Initialize the microcontroller gpio, peripherals, etc.
 // \return  Returns true if initialization was successful, otherwise false.
@@ -138,13 +115,12 @@ uint8_t bsp_system_init(void)
 
     return ret;
 }
-/*********************************************************************/
+
 void bsp_trigger_software_reset(void)
 {
     NVIC_SystemReset();
 }
-/*********************************************************************/
-/*****PRIVATE FUNCTIONS***********************************************/
+
 //
 // \brief   Initialize the microcontroller clocks.
 // \return  Returns true if initialization was successful, otherwise false.
@@ -188,7 +164,7 @@ static uint8_t bsp_clock_init(void)
 
     return EXIT_SUCCESS;
 }
-/*********************************************************************/
+
 //
 // \brief   Initialize the microcontroller gpio.
 // \return  Returns true if initialization was successful, otherwise false.
@@ -249,7 +225,7 @@ static uint8_t bsp_gpio_init(void)
 
     return ret;
 }
-/*********************************************************************/
+
 static uint8_t bsp_module_uart_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -261,7 +237,7 @@ static uint8_t bsp_module_uart_init(void)
 
     return ret;
 }
-/*********************************************************************/
+
 static uint8_t bsp_gps_uart_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -273,7 +249,7 @@ static uint8_t bsp_gps_uart_init(void)
 
     return ret;
 }
-/*********************************************************************/
+
 static uint8_t bsp_user_uart_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -285,7 +261,7 @@ static uint8_t bsp_user_uart_init(void)
 
     return ret;
 }
-/*********************************************************************/
+
 static uint8_t bsp_dac_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -315,7 +291,7 @@ static uint8_t bsp_dac_init(void)
     DAC0->CH0DATA = DAC_Value;
     return ret;
 }
-/*********************************************************************/
+
 static uint8_t bsp_lcd_init(void)
 {
     uint8_t ret = EXIT_SUCCESS;
@@ -324,8 +300,6 @@ static uint8_t bsp_lcd_init(void)
 
     return ret;
 }
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/
+
 /** @} (end addtogroup BSP)   */
 /** @} (end addtogroup Modules) */

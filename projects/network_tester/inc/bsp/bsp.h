@@ -1,10 +1,3 @@
-//
-// \file    bsp.h
-// \brief   BSP Module Header.
-//          System initialization and high-level peripheral control.
-//
-// \copyright LinkLabs, 2015
-//
 #ifndef __BSP_H__
 #define __BSP_H__
 
@@ -12,14 +5,12 @@
 
 #include "iomap.h"
 
-// Includes ------------------------------------------------------------------
-// Exported macros -----------------------------------------------------------
 #define LL_UNUSED           __attribute__((unused))
+#define LL_RAM_FUNC         __attribute__ ((section(".ram")))
 
 #define LL_ASSERT           EFM_ASSERT
 #define HFCLK_FREQ          (32000000UL)                //!< System HF oscillator frequency
 
-// Exported function prototypes ----------------------------------------------
 uint8_t bsp_system_init(void);
 
 void bsp_trigger_software_reset(void);

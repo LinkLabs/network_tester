@@ -1,10 +1,11 @@
 #ifndef SUPERVISOR_H_INCLUDED
 #define SUPERVISOR_H_INCLUDED
-/*********************************************************************/
-/*****INCLUDES********************************************************/
+
 #include "ll_ifc.h"
-/*********************************************************************/
-/*****PUBLIC TYPEDEFS*************************************************/
+
+#define LL_FTP_FIRMWARE_ID_MODULE  (0x726c706d)
+#define LL_FTP_FIRMWARE_ID_NETTEST (0x6e657477)
+
 typedef enum
 {
     MSG_WAITING_FOR_ACK,
@@ -19,18 +20,26 @@ typedef struct
     msg_success_t   acked;
 } msg_record_t;
 
-/*********************************************************************/
-/*****PUBLIC DEFS*****************************************************/
-// downlink band configs
-extern const llabs_dl_band_cfg_t DL_BAN_FCC;  // USA / Mexico
-extern const llabs_dl_band_cfg_t DL_BAN_BRA;  // Brazil
-extern const llabs_dl_band_cfg_t DL_BAN_AUS;  // Australia
-extern const llabs_dl_band_cfg_t DL_BAN_NZL;  // New Zealand
-extern const llabs_dl_band_cfg_t DL_BAN_ETSI; // Europe
-/*****PUBLIC FUNCTIONS************************************************/
+typedef struct
+{
+    uint32_t crc;
+    uint32_t size;
+    uint32_t id;
+    uint32_t version;
+} ftp_header_data_t;
+
+// returns -1 if the flash vars are null
+int32_t load_ftp_flash_vars(uint32_t start_addr, ftp_header_data_t* data);
+
 void sup_get_gw_status(llabs_network_info_t* gw_info_ptr);
-bool sup_get_GW_rssi(int16_t* rssi_ptr);    // returns true if GW connected, false otherwise.  Stores RSSI in rssi_ptr if GW connected
+
+// returns true if GW connected, false otherwise.  Stores RSSI in rssi_ptr if GW connected
+bool sup_get_GW_rssi(int16_t* rssi_ptr);
+
 uint8_t init_supervisor_task(void);
+
 uint64_t sup_get_MAC_address(void);
-/*********************************************************************/
+
+ll_version_t sup_get_version(void);
+
 #endif /* SUPERVISOR_H_INCLUDED */

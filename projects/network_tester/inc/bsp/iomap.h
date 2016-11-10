@@ -1,10 +1,3 @@
-//
-// \file    iomap.h
-// \brief   IO Mapping Header.
-//          Pin and port configurations, high-level GPIO control.
-//
-// \copyright LinkLabs, 2015
-//
 #ifndef __IOMAP_H__
 #define __IOMAP_H__
 
@@ -29,8 +22,7 @@
 // port B
 #define LCD_CONTRAST(x)     GPIO_PinModeSet(gpioPortB,11,gpioModePushPull,x)
 
-// port C
-//rev3
+// port C [rev3]
 #define LCD_PORT_r3        gpioPortC
 #define LCD_PIN0_r3        0
 #define LCD_DATA_RD_r3()   (GPIO_PortInGet(gpioPortC) & 255)
@@ -48,7 +40,8 @@
 #define LCD_RS_r3(x)       GPIO_PinModeSet(gpioPortC,10,gpioModePushPull,x)
 #define LCD_BKLT_EN_r3(x)  GPIO_PinModeSet(gpioPortC,11,gpioModePushPull,x)
 #define LCD_BKLT_TOGGLE_r3()   GPIO_PinOutToggle(gpioPortC,11)
-//rev4
+
+//port C [rev4]
 #define LCD_PORT_r4        gpioPortC
 #define LCD_PIN0_r4        4
 #define LCD_DATA_RD_r4()   ((GPIO_PortInGet(gpioPortC)>>4) & 255)
@@ -66,8 +59,6 @@
 #define LCD_RS_r4(x)       GPIO_PinModeSet(gpioPortC,14,gpioModePushPull,x)
 #define LCD_BKLT_EN_r4(x)  GPIO_PinModeSet(gpioPortC,15,gpioModePushPull,x)
 #define LCD_BKLT_TOGGLE_r4()   GPIO_PinOutToggle(gpioPortC,15)
-
-
 
 // port D
 #define MODULE_BOOT(x)         GPIO_PinModeSet(gpioPortD,3,gpioModePushPull,x)

@@ -1,39 +1,27 @@
-/*********************************************************************/
-// compensation code for BME280, copied from datasheet
-/*********************************************************************/
-/*****INCLUDES********************************************************/
-//-----Standard Libraries-----//
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-//-----EFM Libraries-----//
 #include "em_chip.h"
 #include "em_i2c.h"
-//-----My Libraries-----//
 #include "bsp.h"
 #include "bsp_i2c.h"
 #include "iomap.h"
 #include "bme280_driver.h"
-/*********************************************************************/
-/*****DEFINES*********************************************************/
+
 #define BME280_ADDR             0xEC
 #define BME280_CAL0_START_ADDR  0x88
 #define BME280_CAL1_START_ADDR  0xE1
 #define BME280_CTRL_HUM_ADDR    0xF2
 #define BME280_CTRL_MEAS_ADDR   0xF4
 #define BME280_DATA_START_ADDR  0xF7
-/*********************************************************************/
-/*****TYPEDEFS/STRUCTS************************************************/
-/*********************************************************************/
-/*****CONSTANTS*******************************************************/
+
 const uint8_t BME280_config[] = {BME280_CTRL_HUM_ADDR,
                                  0x01,  // 1x humidity oversampling
                                  BME280_CTRL_MEAS_ADDR,
                                  0x27};  // 1x temp/pressure oversampling, normal mode
-/*********************************************************************/
-/*****VARIABLES*******************************************************/
+
 I2C_TypeDef* BME280_i2c;
 
 bme280_data_t bme280_data;
@@ -58,13 +46,11 @@ uint8_t  dig_H3;
 int16_t  dig_H4;
 int16_t  dig_H5;
 int8_t   dig_H6;
-/*********************************************************************/
-/*****PRIVATE FUNCTION PROTOTYPES*************************************/
+
 static int32_t BME280_compensate_T_int32(int32_t adc_T);
 static uint32_t BME280_compensate_P_int64(int32_t adc_P);
 static uint32_t bme280_compensate_H_int32(int32_t adc_H);
-/*********************************************************************/
-/*****PRIVATE FUNCTIONS***********************************************/
+
 // Returns temperature in DegC, resolution is 0.01 DegC. Output value of “5123” equals 51.23 DegC.
 // t_fine carries fine temperature as global value
 static int32_t BME280_compensate_T_int32(int32_t adc_T)
@@ -78,7 +64,7 @@ static int32_t BME280_compensate_T_int32(int32_t adc_T)
 
     return(T);
 }
-/*********************************************************************/
+
 // Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
 // Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
 static uint32_t BME280_compensate_P_int64(int32_t adc_P)
@@ -103,7 +89,7 @@ static uint32_t BME280_compensate_P_int64(int32_t adc_P)
 
     return (uint32_t)p;
 }
-/*********************************************************************/
+
 // Returns humidity in %RH as unsigned 32 bit integer in Q22.10 format (22 integer and 10 fractional bits).
 // Output value of “47445” represents 47445/1024 = 46.333 %RH
 static uint32_t bme280_compensate_H_int32(int32_t adc_H)
@@ -121,11 +107,7 @@ static uint32_t bme280_compensate_H_int32(int32_t adc_H)
 
     return (uint32_t)(v_x1_u32r>>12);
 }
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/
-/*****PUBLIC FUNCTIONS************************************************/
+
 void BME280_poll_sensor(bme280_data_t *data_ptr)
 {
     (void) data_ptr; //unused
@@ -174,7 +156,7 @@ void BME280_poll_sensor(bme280_data_t *data_ptr)
     bme280_data.pressure = (uint32_t)(processed_P);
     bme280_data.humidity = (uint8_t)((processed_H>>9) & 255);
 }
-/*********************************************************************/
+
 uint32_t init_BME280(I2C_TypeDef *i2c)
 {
     I2C_TransferSeq_TypeDef BME_transfer;
@@ -288,12 +270,8 @@ uint32_t init_BME280(I2C_TypeDef *i2c)
 
     return(EXIT_SUCCESS);
 }
-/*********************************************************************/
+
 void BME280_get_data(bme280_data_t *data_ptr)
 {
     *data_ptr = bme280_data;
 }
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/
-/*********************************************************************/

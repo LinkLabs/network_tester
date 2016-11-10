@@ -1,7 +1,7 @@
 /**
   * \file    watchdog_cfg.h
-  * \brief   Watchdog Config Header File: Defines for watchdog.c  
-  * \author  Worldsensing  
+  * \brief   Watchdog Config Header File: Defines for watchdog.c
+  * \author  Worldsensing
   *
   * \section License
   *          (C) Copyright 2014 Worldsensing, http://www.worldsensing.com
@@ -19,7 +19,7 @@
   *   @{
   */
 
-#define WDG_TASK_PRIORITY    (tskIDLE_PRIORITY + configMAX_PRIORITIES - 1) 
+#define WDG_TASK_PRIORITY    (tskIDLE_PRIORITY + configMAX_PRIORITIES - 1)
 #define WDG_TASK_STACK_SIZE  100u
 
 #define WDG_MAX_NUM           10

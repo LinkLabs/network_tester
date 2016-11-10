@@ -1,20 +1,11 @@
-//
-// \file    bsp_watchdog.h
-// \brief   BSP Watchdog Module Header.
-//          Device watchdog initialization and high-level functions..
-//
-// \copyright LinkLabs, 2015
-//
 #ifndef __WATCHDOG_H__
 #define __WATCHDOG_H__
 
-// Includes ------------------------------------------------------------------
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "FreeRTOS.h"
 
-// Exported macros -----------------------------------------------------------
 #define WDG_EXT
 
 #define WDG_DISABLED        0u
@@ -28,7 +19,6 @@
 
 typedef uint8_t wdg_handler_t;
 
-// Exported function prototypes ----------------------------------------------
 uint8_t wdg_init(void);
 
 void wdg_enable(wdg_handler_t handler);

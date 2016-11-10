@@ -1,4 +1,3 @@
-//Includes
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -8,13 +7,11 @@
 #include "em_cmu.h"
 #include "em_gpio.h"
 
+#include "bsp.h"
 #include "iomap.h"
 #include "bsp_io.h"
 #include "debug_print.h"
 
-
-
-// Static Globals (file scope)
 static bsp_hw_rev_t s_hw_rev = HW_REV_UNKNOWN;
 
 // Determines hardware revision subsequently does pin assignments
@@ -37,7 +34,7 @@ int8_t bsp_io_init(void)
     else
     {
         s_hw_rev = HW_REV_UNKNOWN;
-        EFM_ASSERT(false);
+        LL_ASSERT(false);
         return EXIT_FAILURE;
     }
 
@@ -65,7 +62,7 @@ uint8_t lcd_data_rd(void)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 
     return ret;
@@ -83,14 +80,14 @@ void lcd_data(uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
 
 void lcd_dbx(uint8_t pin, uint8_t val)
 {
-    EFM_ASSERT(pin < 8);
+    LL_ASSERT(pin < 8);
 
     //todo
     if(HW_REV3 == s_hw_rev)
@@ -165,7 +162,7 @@ void lcd_dbx(uint8_t pin, uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
@@ -182,7 +179,7 @@ void lcd_e(uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
@@ -199,7 +196,7 @@ void lcd_rnw(uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
@@ -216,7 +213,7 @@ void lcd_rs(uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
@@ -233,7 +230,7 @@ void lcd_bklt_en(uint8_t val)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 
@@ -250,7 +247,7 @@ void lcd_bklt_toggle(void)
     }
     else
     {
-        EFM_ASSERT(0);
+        LL_ASSERT(0);
     }
 }
 

@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "osp.h"
-//#include "iodefine.h"
 
 #define UINT16_DECODE_INC(var, p_buf)        var = osp_uint16_decode(p_buf); p_buf+=2;
 #define UINT32_DECODE_INC(var, p_buf)        var = osp_uint32_decode(p_buf); p_buf+=4;
@@ -543,31 +542,6 @@ void osp_parse_sw_toolbox(uint8_t *payload, uint16_t payload_len)
     {
         curr_freq = payload[2] << 24 | payload[3] << 16 | payload[4] << 8 | payload[5];
         g_last_freq = curr_freq;
-#if 0
-        if (curr_freq != TCXO_FREQUENCY)
-        {
-            payload[1] = TRACKER_CONFIG;
-            payload[2] = (TCXO_FREQUENCY >> 24) & 0xFF;
-            payload[3] = (TCXO_FREQUENCY >> 16) & 0xFF;
-            payload[4] = (TCXO_FREQUENCY >> 8) & 0xFF;
-            payload[5] = (TCXO_FREQUENCY) & 0xFF;
-
-            osp_send_message(payload, payload_len - 2);
-            if (pkt_cnt % 4 == 0)
-            {
-                pkt_cnt = 1;
-            }
-            pkt_cnt++;
-            osp_tracker_poll();
-            osp_tracker_poll();
-        }
-        else if (gps_is_clk_reset_done() == 0)
-        {
-            gps_reset(); //RICKY: this has to happen for clock to be correct
-            s_ok_to_send = 0;
-            gps_set_clk_reset_done(1);
-        }
-#endif
     }
 }
 
@@ -773,22 +747,3 @@ uint8_t osp_get_num_sats(gps_data_t* data)
     return num_sats;
 }
 
-#if 0
-int main(int argc, char *argv[])
-{
-    uint32_t ret;
-    app_uart_comm_params_t osp_uart_params;
-
-    osp_uart_params.baud_rate = UART_BAUDRATE_BAUDRATE_Baud115200;
-    osp_uart_params.rx_pin_no = GPIO_GPS_UART_RX;
-    osp_uart_params.tx_pin_no = GPIO_GPS_UART_TX;
-    osp_uart_params.use_parity = false;
-    osp_uart_params.flow_control = APP_UART_FLOW_CONTROL_DISABLED;
-    APP_UART_FIFO_INIT(&osp_uart_params, NUM_BYTES_RX_FIFO, NUM_BYTES_TX_FIFO, osp_uart_event_handler, APP_IRQ_PRIORITY_LOW, ret);
-    if (NRF_SUCCESS != ret)
-    {
-        return -1;
-    }
-    return 0;
-}
-#endif

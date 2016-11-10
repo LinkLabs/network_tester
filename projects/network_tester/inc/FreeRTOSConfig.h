@@ -75,7 +75,7 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-#include "em_assert.h"
+#include "bsp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,7 +84,7 @@ extern "C" {
 /********************** Configuration of FreeRTOS ****************************/
 
 /* Implement FreeRTOS configASSERT as emlib assert */
-#define configASSERT( x )       EFM_ASSERT( x )
+#define configASSERT( x )       LL_ASSERT( x )
 
 /* Modes of operations of operation system*/
 #define configUSE_PREEMPTION       ( 1 )
