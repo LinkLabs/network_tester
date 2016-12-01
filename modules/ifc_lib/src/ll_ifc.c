@@ -29,7 +29,7 @@ int32_t hal_read_write(opcode_t op, uint8_t buf_in[], uint16_t in_len, uint8_t b
     int32_t ret;
 
     // Error checking:
-    // Only valid combinations of bufher & length pairs are:
+    // Only valid combinations of buffer & length pairs are:
     // buf == NULL, len = 0
     // buf != NULL, len > 0
     if (((buf_in  != NULL) && ( in_len == 0)) || (( buf_in == NULL) && ( in_len > 0)))
@@ -78,6 +78,10 @@ char const * ll_return_code_name(int32_t return_code)
         case -LL_IFC_NACK_BUSY_TRY_AGAIN:            return "BUSY_TRY_AGAIN";
         case -LL_IFC_NACK_APP_TOKEN_REG:             return "APP_TOKEN_REG";
         case -LL_IFC_NACK_PAYLOAD_LEN_EXCEEDED:      return "PAYLOAD_LEN_EXCEEDED";
+        case -LL_IFC_NACK_NOT_IN_MAILBOX_MODE:       return "NOT IN MAILBOX MODE";
+        case -LL_IFC_NACK_PAYLOAD_BAD_PROPERTY:      return "BAD PROPERTY ID";
+        case -LL_IFC_NACK_NODATA:                    return "NO DATA AVAIL";
+        case -LL_IFC_NACK_QUEUE_FULL:                return "QUEUE FULL";
         case -LL_IFC_NACK_OTHER:                     return "OTHER";
 
         case LL_IFC_ERROR_INCORRECT_PARAMETER:       return "INCORRECT_PARAMETER";
@@ -110,6 +114,10 @@ char const * ll_return_code_description(int32_t return_code)
         case -LL_IFC_NACK_BUSY_TRY_AGAIN:            return "Operation prevented by temporary event. Retry later.";
         case -LL_IFC_NACK_APP_TOKEN_REG:             return "Application token is not registered for this node.";
         case -LL_IFC_NACK_PAYLOAD_LEN_EXCEEDED:      return "Payload length is greater than the max supported length";
+        case -LL_IFC_NACK_NOT_IN_MAILBOX_MODE:       return "Command invalid, not in mailbox mode";
+        case -LL_IFC_NACK_PAYLOAD_BAD_PROPERTY:      return "Bad property ID specified";
+        case -LL_IFC_NACK_NODATA:                    return "No msg data available to return";
+        case -LL_IFC_NACK_QUEUE_FULL:                return "Data cannot be enqueued for transmission, queue is full";
         case -LL_IFC_NACK_OTHER:                     return "Unspecified error";
 
         case LL_IFC_ERROR_INCORRECT_PARAMETER:       return "The parameter value was invalid";
@@ -311,7 +319,8 @@ int32_t ll_reset_mcu(void)
 
 int32_t ll_bootloader_mode(void)
 {
-    return hal_read_write(OP_TRIGGER_BOOTLOADER, NULL, 0, NULL, 0);
+    send_packet(OP_TRIGGER_BOOTLOADER, message_num, NULL, 0);
+    return 0;
 }
 
 /**
@@ -346,6 +355,7 @@ int32_t ll_irq_flags(uint32_t flags_to_clear, uint32_t *flags)
     return(rw_response);
 }
 
+//STRIPTHIS!START
 int32_t ll_timestamp_get(uint32_t * timestamp_us)
 {
     return ll_timestamp_set(LL_TIMESTAMP_NO_OPERATION, 0, timestamp_us);
@@ -357,7 +367,7 @@ int32_t ll_timestamp_set(ll_timestamp_operation_t operation, uint32_t timestamp_
     uint8_t * b_in = in_buf;
     uint8_t out_buf[4] = {0,0,0,0};
 
-    if ((operation < 0) || (operation > LL_TIMESTAMP_SYNC))
+    if (actual_timestamp_us == NULL)
     {
         return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
@@ -376,6 +386,37 @@ int32_t ll_timestamp_set(ll_timestamp_operation_t operation, uint32_t timestamp_
     return rw_response;
 }
 
+int32_t ll_trigger_watchdog(void)
+{
+    uint8_t cmd_buf[2];
+    cmd_buf[0] = 0x00;
+    cmd_buf[1] = 0x01;
+    return hal_read_write(OP_RESERVED1, cmd_buf, 2, NULL, 0);
+}
+
+int32_t ll_get_assert_info(char *filename, uint16_t filename_len, uint32_t *line)
+{
+    uint8_t tmp_arr[4 + 20];
+    int32_t ret = hal_read_write(OP_GET_ASSERT, NULL, 0, tmp_arr, 4 + 20);
+    if (ret > 0)
+    {
+        *line = 0;
+        *line += (uint32_t)(tmp_arr[0]) << 24;
+        *line += (uint32_t)(tmp_arr[1]) << 16;
+        *line += (uint32_t)(tmp_arr[2]) <<  8;
+        *line += (uint32_t)(tmp_arr[3]) <<  0;
+
+        uint16_t cpy_len = filename_len < 20 ? filename_len : 20;
+        memcpy(filename, tmp_arr + 4, cpy_len);
+    }
+    return ret;
+}
+int32_t ll_trigger_assert(void)
+{
+    return hal_read_write(OP_SET_ASSERT, NULL, 0, NULL, 0);
+}
+
+//STRIPTHIS!STOP
 
 int32_t ll_reset_state( void )
 {
@@ -383,83 +424,6 @@ int32_t ll_reset_state( void )
     return 0;
 }
 
-
-/*
- * Command/response payload formats
- *
- * OP_LORAWAN_ACTIVATE
- *
- * command:
- *  - subtype (1 byte): ll_lorawan_activation_e
- *  - remaining payload...
- *
- * For LL_LORAWAN_ACTIVATION_OVER_THE_AIR:
- *  - network_type (1 byte)
- *  - device_class (1 byte)
- *  - devEui (8 bytes)
- *  - appEui (8 bytes)
- *  - appKey (16 bytes)
- *
- * For LL_LORAWAN_ACTIVATION_PERSONALIZATION:
- *  - network_type (1 byte)
- *  - device_class (1 byte)
- *  - netID (4 bytes)
- *  - devAddr (4 bytes)
- *  - netSKey (16 bytes)
- *  - appSKey (16 bytes)
- *
- * For LL_LORAWAN_ACTIVATION_QUERY, no additional payload
- *
- * response:
- *  - status (1 byte): ll_lorawan_activation_status_e
- *
- * OP_LORAWAN_PARAM
- *
- * command:
- *  - data_type (1 byte): 0x03 = i32
- *  - parameter_id (1 byte)
- *  - data_size (1 byte): in bytes, 0 for get operation
- *  - data (data_size bytes): big endian
- *
- * response:
- *  - data_type (1 byte)
- *  - parameter_id (1 byte)
- *  - data_size (1 byte)
- *  - data (data_size bytes): big endian
- *
- *
- * OP_LORAWAN_PKT_SEND
- *
- * command:
- *  - flags (1 byte)
- *  - fPort (1 byte)
- *  - retries (1 byte)
- *  - data_size (1 byte)
- *  - data (data_size bytes)
- *
- * response: empty (just ACK/status bit used)
- *
- *
- * OP_LORAWAN_PKT_RECEIVE (poll for an already received packet)
- *
- * command has no payload
- *
- * response:
- *  - flags (1 byte):
- *    - rx: a receive packet with payload was received
- *    - rx_multicast: the received packet was multicast
- *    - ack: an acknowledgment was received
- *    - link_check: link check data was received
- *  - TxNbRetries (1 byte): only valid if tx
- *  - DemodMargin (1 byte): only valid if link_check is set
- *  - NbGateways (1 byte): only valid if link_check is set
- *  - RxRssi (1 byte): 0xff = +20 dB
- *  - RxSnr (1 byte)
- *  - RxPort (1 byte), only valid if rx
- *  - bytes_received (1 byte), only valid if rx
- *  - data (bytes_received bytes), only valid if rx
- *
- */
 
 /**
  * @brief
@@ -655,7 +619,8 @@ static int32_t recv_packet(opcode_t op, uint8_t message_num, uint8_t *buf, uint1
     transport_read(checksum_buff, 2);
 
     computed_checksum = compute_checksum(header_buf, RESP_HEADER_LEN, buf, len);
-    if (((uint16_t)checksum_buff[0] << 8) + checksum_buff[1] != computed_checksum)
+    uint16_t rx_checksum = ((uint16_t)checksum_buff[0] << 8) + checksum_buff[1];
+    if (rx_checksum != computed_checksum)
     {
         return LL_IFC_ERROR_CHECKSUM_MISMATCH;
     }

@@ -652,6 +652,13 @@ void sup_report_status(void)
     LL_ASSERT(ret >= 0);
     ui_display_gw_info(&s_ll_vars.net_info, s_ll_vars.state);              // display gateway rssi bar (if appropriate)
     ui_display_network_diagnostics(&s_ll_vars.net_info, s_ll_vars.state);  // display network diagnostics (if appropriate)
+
+    // If the NT has been running for more than 10s but less then 12s, update the display to change the
+    // main menu title from module version to the mac address
+    if (((xTaskGetTickCount()*portTICK_RATE_MS) > 10000) && (xTaskGetTickCount()*portTICK_RATE_MS) < 12000)
+    {
+        ui_refresh_display();
+    }
 }
 
 static supervisor_state_t sup_state_get(void)
@@ -1138,7 +1145,6 @@ static void sup_initializing_state()
                     break;
                 case SUP_CMD_STATUS_TIMEOUT:
                     sup_report_status();
-                    ui_refresh_display();
                     break;
                 case SUP_CMD_UART_PASSTHRU:
                     b_exit_state = true;

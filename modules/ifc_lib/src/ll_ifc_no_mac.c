@@ -39,7 +39,7 @@ int32_t ll_rssi_scan_get(uint8_t buf[], uint16_t len, uint8_t *bytes_received)
 
     if (buf == NULL || len <= 0 || bytes_received == NULL)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
     rw_response = hal_read_write(OP_RSSI_GET, NULL, 0, buf, len);
@@ -235,7 +235,7 @@ int32_t ll_packet_send_queue(uint8_t buf[], uint16_t len)
 {
     if (buf == NULL || len <= 0)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
     uint8_t cmd_response;
@@ -252,39 +252,49 @@ int32_t ll_packet_send_queue(uint8_t buf[], uint16_t len)
     }
 }
 
+//STRIPTHIS!START
 int32_t ll_packet_send_timestamp(uint32_t timestamp_us, uint8_t buf[], uint16_t len)
 {
     uint8_t in_buf[4];
     uint8_t * b = in_buf;
     write_uint32(timestamp_us, &b);
-    int32_t rw_response = hal_read_write_exact(OP_PKT_SEND_TIMESTAMP, in_buf, sizeof(in_buf), NULL, 0);
+    int32_t rw_response = hal_read_write_exact(OP_SEND_TIMESTAMP, in_buf, sizeof(in_buf), NULL, 0);
     if (rw_response < 0)
     {
         return rw_response;
     }
     return ll_packet_send_queue(buf, len);
 }
+//STRIPTHIS!STOP
 
 int32_t ll_transmit_cw(void)
 {
     return hal_read_write(OP_TX_CW, NULL, 0, NULL, 0);
 }
 
-int32_t ll_packet_recv_cont(uint8_t buf[], uint16_t len, uint8_t *bytes_received)
+int32_t ll_packet_recv_cont(uint8_t buf[], uint16_t len, uint8_t *bytes_received, bool freq_error_requested)
 {
     int32_t rw_response;
 
     if (buf == NULL || len == 0 || bytes_received == NULL)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
-    rw_response = hal_read_write(OP_PKT_RECV_CONT, NULL, 0, buf, len);
+    if (freq_error_requested)
+    {
+        uint8_t request_type = 0x01;
+        rw_response = hal_read_write(OP_PKT_RECV_CONT, &request_type, 1, buf, len);
+    }
+    else
+    {
+        rw_response = hal_read_write(OP_PKT_RECV_CONT, NULL, 0, buf, len);
+    }
 
-    if (rw_response < 0)
+    if (rw_response < LL_IFC_ACK)
     {
         *bytes_received = 0;
-        return(-1);
+        return rw_response;
     }
     else
     {
@@ -300,7 +310,7 @@ int32_t ll_packet_recv(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len
 
     if (buf == NULL || len <= 0 || bytes_received == NULL)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
     // Make the uint16_t value big-endian
@@ -321,21 +331,29 @@ int32_t ll_packet_recv(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len
     }
 }
 
-int32_t ll_packet_recv_with_rssi(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len, uint8_t *bytes_received)
+int32_t ll_packet_recv_with_rssi(uint16_t num_timeout_symbols, uint8_t buf[], uint16_t len, uint8_t *bytes_received, bool freq_error_requested)
 {
-    uint8_t buff[2];
+    uint8_t local_buff[3];
     int32_t rw_response;
 
     if (buf == NULL || len <= 0 || bytes_received == NULL)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
     // Make the uint16_t value big-endian
-    buff[0] = (num_timeout_symbols >> 8) & 0xFF;
-    buff[1] = (num_timeout_symbols >> 0) & 0xFF;
+    local_buff[0] = (num_timeout_symbols >> 8) & 0xFF;
+    local_buff[1] = (num_timeout_symbols) & 0xFF;
 
-    rw_response = hal_read_write(OP_PKT_RECV_RSSI, buff, sizeof(num_timeout_symbols), buf, len);
+    uint16_t in_len = sizeof(num_timeout_symbols);
+
+    if (freq_error_requested)
+    {
+        local_buff[2] = 0x01;
+        in_len += 1;
+    }
+
+    rw_response = hal_read_write(OP_MSG_RECV_RSSI, local_buff, in_len, buf, len);
 
     if (rw_response < 0)
     {

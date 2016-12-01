@@ -2,39 +2,71 @@
 #define __LL_IFC_SYMPHONY_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "ll_ifc.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/**
+ * @addtogroup Link_Labs_Interface_Library
+ * @{
+ */
+
+/**
+ * @defgroup Symphony_Interface Symphony Link
+ *
+ * @brief Communicate with a Symphony Link network.
+ *
+ * Symphony Link mode allows the external host to communicate with Symphony
+ * Link networks, a dynamic IEEE 802.15.4 based LoRa wireless system built
+ * specifically for low power, wide-area connectivity.
+ *
+ * @{
+ */
+
 enum ll_downlink_mode {
-    LL_DL_OFF = 0,
-    LL_DL_ALWAYS_ON = 1,
-    LL_DL_MAILBOX = 2,
+    LL_DL_OFF = 0,          ///< 0x00
+    LL_DL_ALWAYS_ON = 1,    ///< 0x01
+    LL_DL_MAILBOX = 2,      ///< 0x02
 };
 
 enum ll_state {
-    LL_STATE_IDLE_CONNECTED = 1,
-    LL_STATE_IDLE_DISCONNECTED = 2,
-    LL_STATE_INITIALIZING = 3,
-    LL_STATE_ERROR = -1,
+    LL_STATE_IDLE_CONNECTED = 1,        ///< 0x01
+    LL_STATE_IDLE_DISCONNECTED = 2,     ///< 0x02
+    LL_STATE_INITIALIZING = 3,          ///< 0x03
+    LL_STATE_ERROR = -1,                ///< 0xFF
 };
 
 enum ll_tx_state {
-    LL_TX_STATE_TRANSMITTING = 1,
-    LL_TX_STATE_SUCCESS = 2,
-    LL_TX_STATE_ERROR = -1,
+    LL_TX_STATE_TRANSMITTING = 1,       ///< 0x01
+    LL_TX_STATE_SUCCESS = 2,            ///< 0x02
+    LL_TX_STATE_ERROR = -1,             ///< 0xFF
 };
 
 enum ll_rx_state {
-    LL_RX_STATE_NO_MSG = 0,
-    LL_RX_STATE_RECEIVED_MSG = 1,
+    LL_RX_STATE_NO_MSG = 0,             ///< 0x00
+    LL_RX_STATE_RECEIVED_MSG = 1,       ///< 0x01
 };
 
 /**
+ * @brief An exposed buffer that will be used internally, but can also be used
+ *   to hold uplink messages for 'll_message_send' to avoid double-buffering.
+ *   The buffer has size 256 bytes.
+ */
+extern uint8_t *uplink_message_buff;
+
+extern const llabs_dl_band_cfg_t DL_BAN_FCC;  ///< USA / Mexico DL Band Configuration
+extern const llabs_dl_band_cfg_t DL_BAN_BRA;  ///< Brazil DL Band Configuration
+extern const llabs_dl_band_cfg_t DL_BAN_AUS;  ///< Australia DL Band Configuration
+extern const llabs_dl_band_cfg_t DL_BAN_NZL;  ///< New Zealand DL Band Configuration
+extern const llabs_dl_band_cfg_t DL_BAN_ETSI; ///< Europe (ETSI) DL Band Configuration
+
+
+/**
  * @brief
- *   Set the current configuration of the module
+ *   Set the current configuration of the module.
  *
  * @details
  *   Sets the configuration values for the module. The module
@@ -53,7 +85,7 @@ enum ll_rx_state {
  *   The app token set for this module. This is what registers your uplink
  *   messages with your Conductor account.
  *
- * @param[in] ll_downlink_mode
+ * @param[in] dl_mode
  *   The downlink mode for this module.
  *
  * @param[in] qos
@@ -70,7 +102,7 @@ int32_t ll_config_set(uint32_t net_token, const uint8_t app_token[APP_TOKEN_LEN]
 
 /**
  * @brief
- *   Get the current configuration of the module
+ *   Get the current configuration of the module.
  *
  * @details
  *   Returns the configuration set by the user (or defaults
@@ -85,7 +117,7 @@ int32_t ll_config_set(uint32_t net_token, const uint8_t app_token[APP_TOKEN_LEN]
  * @param[out] app_token
  *   The app token set for this module.
  *
- * @param[out] ll_downlink_mode
+ * @param[out] dl_mode
  *   The downlink mode requested for this module.
  *
  * @param[out] qos
@@ -127,130 +159,178 @@ int32_t ll_get_state(enum ll_state * state, enum ll_tx_state * tx_state, enum ll
 
 /**
  *@brief
- *  Request
+ *  Request.
  *
  *@return
- *   0 - success, negative otherwise (Fails if module is not in MAILBOX mode)
+ *   0 - success, negative otherwise (Fails if module is not in MAILBOX mode).
  */
 int32_t ll_mailbox_request(void);
 
 /**
  *@brief
- *  Get the end node's application token's registration status
+ *  Get the end node's application token's registration status.
  *
  *@param[out] is_registered
  *  1=>registered, 0=>otherwise
  *
  *@return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_app_reg_get(uint8_t *is_registered);
 
 /**
  *@brief
- *  Request a new key exchange between end node and gateway
+ *  Request a new key exchange between end node and gateway.
  *
  *@return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_encryption_key_exchange_request(void);
 
 /**
  * @brief
- *   Get the Network Info
+ *   Get the Network Info.
  *
- * @param[out]
+ * @param[out] net_info
  *   Network Info:
  *   All multi byte values are sent over in little-endian mode.
  *   Byte [0-3]   : uint32_t network id (node)
  *   Byte [4-7]   : uint32_t network id (gateway)
  *   Byte [8]     : int8_t gateway channel
  *   Byte [9-12]  : uint32_t gateway frequency
- *   Byte [13-16] : uint32_t Seconds elapsed since last packet Rx'd
+ *   Byte [13-16] : uint32_t Seconds elapsed since last beacon Rx'd
  *   Byte [17-18] : int16_t Downlink RSSI [dBm]
  *   Byte [19]    : uint8_t Downlink SNR [dB]
  *   Byte [20-23] : uint32_t Connection Status (0=Unknown, 1=Disconnected, 2=Connected)
  *
  * @return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_net_info_get(llabs_network_info_t *net_info);
 
 /**
  * @brief
- *   Get the Network Communication Statistics
+ *   Get the Network Communication Statistics.
  *
- * @param[out]
- *   The stats struct sent by the module
+ * @param[out] s
+ *   The stats struct sent by the module.
  *
  * @return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_stats_get(llabs_stats_t *s);
 
 /**
  * @brief
- *   Get the Downlink Band Configuration
+ *   Get the Downlink Band Configuration.
  *
- * @param[out]
- *   The band cfg struct sent by the module
+ * @param[out] p_dl_band_cfg
+ *   The band cfg struct sent by the module.
  *
  * @return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_dl_band_cfg_get(llabs_dl_band_cfg_t *p_dl_band_cfg);
 
 
 /**
  * @brief
- *   Set the Downlink Band Configuration
+ *   Set the Downlink Band Configuration.
  *
- * @param[in]
- *   Same param as ll_dl_band_cfg_get()
+ * @param[in] p_dl_band_cfg
+ *   The band cfg struct sent by the module.
  *
  * @return
- *   0 - success, negative otherwise
+ *   0 - success, negative otherwise.
  */
 int32_t ll_dl_band_cfg_set(const llabs_dl_band_cfg_t *p_dl_band_cfg);
 
 /**
  * @brief
- *   Request Symphony MAC to send an acknowledged uplink packet
+ *   Get the Connection Filter value.
  *
- * @details
- *   When the packet finishes transmission the module will return to the idle state.
- *
- * @param[in] buf
- *   byte array containing the data payload
- *
- * @param[in] len
- *   length of the input buffer in bytes
+ * @param[out] p_f
+ *   The current value is written to *p_f.
+ *   0 = Allow connections to any available devices
+ *   1 = Allow connection to Gateways only
+ *   2 = Allow connection to Repeaters only
  *
  * @return
- *   positive number of bytes queued,
- *   negative if an error
+ *   0 - success, negative otherwise.
  */
-int32_t ll_packet_send_ack(uint8_t buf[], uint16_t len);
+int32_t ll_connection_filter_get(uint8_t* p_f);
 
 /**
  * @brief
- *   Request WALoP MAC to send an unacknowledged uplink packet
+ *   Set the Connection Filter value.
+ *
+ * @param[in] f
+ *   Same param ll_connection_filter_get().
+ *
+ * @return
+ *   0 - success, negative otherwise.
+ */
+int32_t ll_connection_filter_set(uint8_t f);
+
+/**
+ * @brief
+ *   Get the system time as number of seconds since the
+ *   UNIX epoch 00:00:00 UTC on 1 January 1970
+ *   and the time the module last synchronized time with the gateway.
+ *
+ * @param[out]
+ *   The time_info struct sent by the module.
+ *
+ * @return
+ *   0 - success, negative otherwise.
+ */
+int32_t ll_system_time_get(llabs_time_info_t *time_info);
+
+/**
+ * @brief
+ *   Force the module to synchronize system time from the gateway.
+ *
+ * @note
+ *   worse-case delay for synchronization is the Info Block period
+ *   which defaults to 8 seconds.
+ *
+ * @param[in] sync_mode
+ *   0 - Time sync only when requested.
+ *   1 - Time sync opportunistically.
+ *
+ * @return
+ *   0 - success, negative otherwise.
+ */
+int32_t ll_system_time_sync(uint8_t sync_mode);
+
+/**
+ * @brief
+ *   Request Symphony MAC to send an acknowledged uplink message.
  *
  * @details
- *   When the packet finishes transmission the module will return to the idle state.
+ *   When the message finishes transmission the module will return to the idle state.
+ *   Internally the function copies the message into a larger buffer. If you want to
+ *   avoid having two buffers you can use the larger buffer (uplink_message_buff)
+ *   to hold the message then call this function with that buffer.
  *
  * @param[in] buf
- *   byte array containing the data payload
+ *   byte array containing the data payload.
  *
  * @param[in] len
- *   length of the input buffer in bytes
+ *   length of the input buffer in bytes.
+ *
+ * @param[in] ack
+ *   Whether or not to request an ACK from the gateway.
+ *
+ * @param[in] port
+ *   The port number to send to. Valid user ports are 0 through 127.
+ *   Ports 128 through 255 are reserved for predefined protocols.
  *
  * @return
  *   positive number of bytes queued,
- *   negative if an error
+ *   negative if an error.
  */
-int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len);
-
+int32_t ll_message_send(uint8_t buf[], uint16_t len, bool ack, uint8_t port);
 
 /**
  * @brief
@@ -259,16 +339,18 @@ int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len);
  * @details
  *   This function should be called when the `rx_state` variable from the `get_state`
  *   function is `LL_RX_STATE_RECEIVED_MSG'.
- * @param[out] app_token
- *   The app token set for this module. This is what registers your uplink
- *   messages with your Conductor account.
  *
  * @param[out] buf
  *   The buffer into which the received message will be placed. This buffer must
- *   be at least (MAX_RX_MSG_LEN + 3) bytes in size (3 bytes will be used to get the RSSI and SNR).
+ *   be at least 4 bytes larger than the maximum message size expected
+ *   (4 bytes will be used to get the RSSI, SNR, and port).
  *
- * @param[out] size
- *   The size of the received message.
+ * @param[in,out] size
+ *   The size of the output buffer. If the message is successfully retrieved,
+ *   this will be set to the size of the message (without the RSSI, SNR, and port).
+ *
+ * @param[out] port
+ *   The port number associated with the message.
  *
  * @param[out] rssi
  *   The rssi of the received message.
@@ -279,7 +361,12 @@ int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len);
  * @return
  *   0 - success, negative otherwise.
  */
-int32_t ll_retrieve_message(uint8_t *buf, uint8_t *size, int16_t *rssi, uint8_t *snr);
+int32_t ll_retrieve_message(uint8_t *buf, uint16_t *size, uint8_t *port, int16_t *rssi, uint8_t *snr);
+
+/** @} (end defgroup Symphony_Interface) */
+
+/** @} (end addtogroup Link_Labs_Interface_Library) */
+
 
 #ifdef __cplusplus
 }

@@ -1070,7 +1070,6 @@ static void ui_menu_select_main_menu(void)
             menu_mode = 0;
             update_rate = 0;
             active_menu = SET_DL_BAND_MENU;
-            ui_load_menu();
             break;
         case CURSOR_LINE_12:
             menu_pos = 0;
@@ -1196,8 +1195,7 @@ static void ui_menu_back(void)
 // mac address.
 static void ui_print_mac_address_string(char* dest)
 {
-    static uint8_t num_times = 3;
-    if (num_times > 0)
+    if ((xTaskGetTickCount()*portTICK_RATE_MS) < 10000)
     {
         ll_version_t version = {0};
         version = sup_get_version();
@@ -1209,7 +1207,6 @@ static void ui_print_mac_address_string(char* dest)
         {
             sprintf(dest,"Module Version:%i.%i.%i", version.major, version.minor, version.tag);
         }
-        num_times--;
     }
     else
     {
@@ -1344,7 +1341,7 @@ static void ui_display_gw_info_dl_strength(llabs_network_info_t* net_info, uint3
         }
         gw_strength_string[sizeof(gw_strength_string)-1] = 0;
         temp_char = screen[MENU_LINE_1][0]; // have to save the first character of next line, since sprintf will put a null there
-        sprintf(screen[MENU_TITLE_LINE],"%s:%s%+4d", net_info->is_repeater ? "REP" : "GW", gw_strength_string, net_info->rssi);
+        sprintf(screen[MENU_TITLE_LINE],"%s:%s%+4d", "GW", gw_strength_string, net_info->rssi);
         screen[MENU_LINE_1][0] = temp_char;
     }
     else if(3 == ll_state) //initializing
@@ -1548,9 +1545,9 @@ void ui_display_network_diagnostics(llabs_network_info_t* net_info, uint32_t ll_
 
     if(1 == ll_state) //connected
     {
-        sprintf(temp_string,"%s RSSI: %4ddBm    ", net_info->is_repeater ? "REP" : "GW", net_info->rssi);
+        sprintf(temp_string,"%s RSSI: %4ddBm    ", "GW", net_info->rssi);
         strncpy(screen[MENU_LINE_1], temp_string, LCD_COLUMNS);
-        sprintf(temp_string,"%s ID: %08X     ", net_info->is_repeater ? "REP" : "GW", (unsigned int) net_info->gateway_id);
+        sprintf(temp_string,"%s ID: %08X     ", "GW", (unsigned int) net_info->gateway_id);
         strncpy(screen[MENU_LINE_2], temp_string, LCD_COLUMNS);
         sprintf(temp_string,"Ch/Frq: %02d/%u", net_info->gateway_channel, (unsigned int) net_info->gateway_frequency);
         strncpy(screen[MENU_LINE_3], temp_string, LCD_COLUMNS);

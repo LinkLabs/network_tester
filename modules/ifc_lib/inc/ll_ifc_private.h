@@ -16,13 +16,13 @@ extern "C" {
  * @param[in] op
  *   opcode of the command being sent to the module
  *
- * @param[in] in_buf
+ * @param[in] buf_in
  *   byte array containing the data payload to be sent to the module
  *
  * @param[in] in_len
  *   size of the output buffer in bytes
  *
- * @param[in] out_buf
+ * @param[in] buf_out
  *   byte array for storing data returned from the module
  *
  * @param[in] out_len

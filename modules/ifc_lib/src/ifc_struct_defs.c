@@ -50,7 +50,7 @@ void ll_net_info_deserialize(const uint8_t buff[NET_INFO_BUFF_SIZE], llabs_netwo
     net_info->last_rx_tick = read_uint32(&b);
     net_info->rssi = read_uint16(&b);
     net_info->snr = read_uint8(&b);
-    net_info->connection_status = read_uint8(&b);
+    net_info->connection_status = (llabs_connect_status_t) read_uint8(&b);
     net_info->is_scanning_gateways = read_uint8(&b);
     net_info->gateway_id = read_uint64(&b);
 }
@@ -122,5 +122,26 @@ uint16_t ll_stats_serialize(const llabs_stats_t *stats, uint8_t buff[STATS_SIZE]
     write_uint32(stats->num_canceled_pkts_ack, &b);
     write_uint32(stats->num_canceled_pkts_csma, &b);
     write_uint32(stats->num_rx_errors, &b);
+    return b - buff;
+}
+
+void ll_time_deserialize(const uint8_t buff[TIME_INFO_SIZE], llabs_time_info_t *time_info)
+{
+    uint8_t const * b = buff;
+    time_info->sync_mode = read_uint8(&b);
+    time_info->curr.seconds = read_uint32(&b);
+    time_info->curr.millis = read_uint16(&b);
+    time_info->last_sync.seconds = read_uint32(&b);
+    time_info->last_sync.millis = read_uint16(&b);
+}
+
+uint16_t ll_time_serialize(const llabs_time_info_t *time_info, uint8_t buff[TIME_INFO_SIZE])
+{
+    uint8_t * b = buff;
+    write_uint8(time_info->sync_mode, &b);
+    write_uint32(time_info->curr.seconds, &b);
+    write_uint16(time_info->curr.millis, &b);
+    write_uint32(time_info->last_sync.seconds, &b);
+    write_uint16(time_info->last_sync.millis, &b);
     return b - buff;
 }

@@ -1,11 +1,18 @@
 #include "ll_ifc_symphony.h"
-#include "ll_ifc_no_mac.h"  // ll_packet_recv_with_rssi
 #include "ll_ifc_private.h"
 #include <string.h>  // memmove
 
+uint8_t _uplink_message_buff[256 + 2];
+uint8_t *uplink_message_buff = _uplink_message_buff + 2;
+uint8_t ll_ul_max_port = 127;
 
+const llabs_dl_band_cfg_t DL_BAN_FCC = {902000000, 928000000, 386703, 3, 0};  // USA / Mexico
+const llabs_dl_band_cfg_t DL_BAN_BRA = {916000000, 928000000, 386703, 3, 0};  // Brazil
+const llabs_dl_band_cfg_t DL_BAN_AUS = {918000000, 926000000, 386703, 3, 0};  // Australia
+const llabs_dl_band_cfg_t DL_BAN_NZL = {921000000, 928000000, 386703, 3, 0};  // New Zealand
+const llabs_dl_band_cfg_t DL_BAN_ETSI = {869100000, 871000000, 386703, 1, 0}; // Europe
 
-static int32_t ll_net_token_get(uint32_t *p_net_token)
+int32_t ll_net_token_get(uint32_t *p_net_token)
 {
     uint8_t buff[4];
     if (p_net_token == NULL)
@@ -21,7 +28,7 @@ static int32_t ll_net_token_get(uint32_t *p_net_token)
     return ret;
 }
 
-static int32_t ll_net_token_set(uint32_t net_token)
+int32_t ll_net_token_set(uint32_t net_token)
 {
     if(net_token != 0xFFFFFFFF)
     {
@@ -62,7 +69,6 @@ static int32_t ll_app_token_get(uint8_t *app_token)
 
 static int32_t ll_receive_mode_set(uint8_t rx_mode)
 {
-    // TODO: Should these use the enum?
     if (rx_mode >= NUM_DOWNLINK_MODES)
     {
         return LL_IFC_ERROR_INCORRECT_PARAMETER;
@@ -244,17 +250,26 @@ int32_t ll_stats_get(llabs_stats_t *s)
     ll_stats_deserialize(buff, s);
     return ret;
 }
-int32_t ll_retrieve_message(uint8_t *buf, uint8_t *size, int16_t *rssi, uint8_t *snr)
+
+int32_t ll_retrieve_message(uint8_t *buf, uint16_t *size, uint8_t *port, int16_t *rssi, uint8_t *snr)
 {
-    uint8_t rx_size;
-    int32_t ret = ll_packet_recv_with_rssi(0, buf, MAX_RX_MSG_LEN + 3, &rx_size);
-    if (LL_IFC_ACK > ret)
+    int32_t rw_response;
+
+    if (buf == NULL || size == NULL)
     {
-        return ret;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
+    }
+
+    rw_response = hal_read_write(OP_MSG_RECV, NULL, 0, buf, *size);
+
+    if (rw_response < LL_IFC_ACK)
+    {
+        *size = 0;
+        return rw_response;
     }
 
     // Size is required
-    *size = rx_size - 3;
+    *size = (uint8_t)(rw_response & 0xFF) - 4;
 
     // Optional RSSI
     if(NULL != rssi)
@@ -269,10 +284,15 @@ int32_t ll_retrieve_message(uint8_t *buf, uint8_t *size, int16_t *rssi, uint8_t 
         *snr = buf[2];
     }
 
-    //get rid of snr and rssi in buffer
-    memmove(buf, buf + 3, *size);
+    if (NULL != port)
+    {
+        *port = buf[3];
+    }
 
-    return ret;
+    //get rid of snr and rssi in buffer
+    memmove(buf, buf + 4, *size);
+
+    return 0;
 }
 
 int32_t ll_dl_band_cfg_get(llabs_dl_band_cfg_t *p)
@@ -298,24 +318,59 @@ int32_t ll_dl_band_cfg_set(const llabs_dl_band_cfg_t *p)
     return hal_read_write(OP_DL_BAND_CFG_SET, buff, DL_BAND_CFG_SIZE, NULL, 0);
 }
 
-int32_t ll_packet_send_ack(uint8_t buf[], uint16_t len)
+int32_t ll_connection_filter_get(uint8_t* p_f)
 {
-    if (buf == NULL || len <= 0)
+    if (NULL == p_f)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
-
-    return hal_read_write(OP_PKT_SEND_ACK, buf, len, NULL, 0);
+    uint8_t f;
+    int32_t ret = hal_read_write(OP_CONN_FILT_GET, NULL, 0, &f, 1);
+    *p_f = f;
+    return ret;
 }
 
-
-int32_t ll_packet_send_unack(uint8_t buf[], uint16_t len)
+int32_t ll_connection_filter_set(uint8_t f)
 {
-    if (buf == NULL || len <= 0)
+    return hal_read_write(OP_CONN_FILT_SET, &f, 1, NULL, 0);
+}
+
+int32_t ll_system_time_get(llabs_time_info_t *time_info)
+{
+    uint8_t buff[TIME_INFO_SIZE];
+    if (time_info == NULL)
     {
-        return 0;
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
+    }
+    int32_t ret = hal_read_write(OP_SYSTEM_TIME_GET, NULL, 0, buff, STATS_SIZE);
+    ll_time_deserialize(buff, time_info);
+    return ret;
+}
+
+int32_t ll_system_time_sync(uint8_t sync_mode)
+{
+    if (sync_mode > 1)
+    {
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
+    }
+    return hal_read_write(OP_SYSTEM_TIME_SYNC, &sync_mode, sizeof(sync_mode), NULL, 0);
+}
+
+int32_t ll_message_send(uint8_t buf[], uint16_t len, bool ack, uint8_t port)
+{
+    if (buf == NULL || len <= 0 || len > 256)
+    {
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
     }
 
-    return hal_read_write(OP_PKT_SEND_UNACK, buf, len, NULL, 0);
+    if (port > ll_ul_max_port)
+    {
+        return LL_IFC_ERROR_INCORRECT_PARAMETER;
+    }
+
+    memmove(uplink_message_buff, buf, len);
+    _uplink_message_buff[0] = (uint8_t)ack;
+    _uplink_message_buff[1] = port;
+    return hal_read_write(OP_MSG_SEND, _uplink_message_buff, len + 2, NULL, 0);
 }
 

@@ -1,23 +1,41 @@
 #ifndef __LL_IFC_H
 #define __LL_IFC_H
 
-#include <stdint.h>
-#include <time.h>
-#include "ll_ifc_consts.h"
-#include "ifc_struct_defs.h"
-
+#include "ll_ifc_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    /**
-     * @addtogroup Link_Labs_Interface_Library
-     * @{
-     */
+/**
+ * @defgroup Link_Labs_Interface_Library ll_ifc
+ *
+ * @brief External host library which simplifies communication to an RF
+ *      network using a Link Labs module.
+ *
+ * This library runs on an <b>external host</b> which can be nearly any
+ * microcontroller or PC with a UART interface.  The library
+ * is written in standard ANSI C (C89) which is supported by nearly every
+ * C compiler.  In addition to the standard C library, the external host
+ * must implement a handful of functions.  See @ref HAL_Interface
+ * for the list of required functions.
+ *
+ * Link Labs modules can support different modes of operation,
+ * and the external host can dynamically select the operating mode using
+ * ll_mac_mode_set().  The available operating modes are:
+ * - @ref Symphony_Interface (915 MHz)
+ * - @ref NoMac_Interface (868 MHz and 915 MHz)
+ *
+ * In addition to the functions unique to each operating mode, the API
+ * includes a number of common management functions.  The
+ * \ref Module_Interface API provides these common functions.
+ *
+ * @{
+ */
 
     /**
-     * @addtogroup Hal_Interface
+     * @defgroup HAL_Interface HAL
+     *
      * @brief The hardware abstraction layer (HAL) for ll_ifc.
      *
      * All functions in the HAL are used by the Link Lab's Interface library
@@ -38,7 +56,7 @@ extern "C" {
      *   The number of bytes to write.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      *
      * This function is usually a simple UART wrapper.
      */
@@ -55,52 +73,44 @@ extern "C" {
      *   The number of bytes to read.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      *
      * This function is usually a simple UART wrapper.
      */
     int32_t transport_read(uint8_t *buff, uint16_t len);
 
     /**
-     * @brief The structure used to store time.
-     */
-    struct time
-    {
-        long tv_sec;
-        long tv_nsec;
-    };
-
-    /**
-     * The following time function must be defined in order to use this library.
+     * @brief
+     *   Get the current time.
      *
      * @param[out] tp
-     *   current value of the clock
+     *   Current value of the clock.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t gettime(struct time *tp);
 
     /**
-     * The following sleep function must be defined in order to use this library.
-     *
      * @brief
-     *   Sleep for a number of milliseconds
+     *   Sleep for a number of milliseconds.
      *
      * @param[in] millis
-     *   number of milliseconds
+     *   number of milliseconds.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t sleep_ms(int32_t millis);
 
-    /** @} (end addtogroup Hal_Interface) */
+    /** @} (end defgroup HAL_Interface) */
 
 
     /**
-     * @addtogroup Module_Interface
-     * @brief
+     * @addtogroup Module_Interface Core
+     * @brief Core functions and data structures used to communicate with the
+     *      module across different MAC modes.
+     *
      * @{
      */
 
@@ -130,31 +140,31 @@ extern "C" {
 
     /**
      * @brief
-     *   Get the module firmware type
+     *   Get the module firmware type.
      *
      * @param[out] t
-     *   pointer to a firmware type struct
+     *   pointer to a firmware type struct.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_firmware_type_get(ll_firmware_type_t *t);
 
     /**
      * @brief
-     *   Get the module hardware type
+     *   Get the module hardware type.
      *
      * @param[out] t
-     *   pointer to a hardware type enum
+     *   pointer to a hardware type enum.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_hardware_type_get(ll_hardware_type_t *t);
 
     /**
      * @brief
-     *   Get the string for the module hardware type
+     *   Get the string for the module hardware type.
      *
      * @param[in] t
      *   The hardware type enum, usually from ll_hardware_type_get().
@@ -166,25 +176,25 @@ extern "C" {
 
     /**
      * @brief
-     *   Get the host interface version number
+     *   Get the host interface version number.
      *
      * @param[out] version
-     *   pointer to a version struct
+     *   pointer to a version struct.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_interface_version_get(ll_version_t *version);
 
     /**
      * @brief
-     *   Get the module firmware version number
+     *   Get the module firmware version number.
      *
      * @param[out] version
-     *   pointer to a version struct
+     *   pointer to a version struct.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_version_get(ll_version_t *version);
 
@@ -197,86 +207,80 @@ extern "C" {
      *   module to enter into the sleep mode again.
      *
 	 * @return
-	 *   0 - success, negative otherwise
+	 *   0 - success, negative otherwise.
 	 */
 	int32_t ll_sleep_block(void);
 
     /**
 	 * @brief
-	 *   Unblock sleep modes
+	 *   Unblock sleep modes.
 	 *
      * @details
      *   This function unblocks sleep mode regardless of how many times
      *   ll_sleep_block() has been called.
      *
 	 * @return
-	 *   0 - success, negative otherwise
+	 *   0 - success, negative otherwise.
 	 */
 	int32_t ll_sleep_unblock(void);
 
 	/**
      * @brief
-     *   Set the MAC Mode
+     *   Set the MAC Mode.
      *
      * @param[in] mac_mode
      *   0 = No MAC (Pass through mode)
-     *   1 = LoRaMAC (European version)
-     *   2 = LoRaMAC (North American version)
-     *   3 = Link Labs MAC v1
+     *   3 = Symphony Link
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_mac_mode_set(ll_mac_type_t mac_mode);
 
     /**
      * @brief
-     *   Get the MAC Mode
+     *   Get the MAC Mode.
      *
-     * @param[out] mac_mode
-     *   0 = No MAC (Pass through mode)
-     *   1 = LoRaMAC (European version)
-     *   2 = LoRaMAC (North American version)
-     *   3 = Link Labs MAC v1
+     * @param[out] mac_mode The current MAC operating mode.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_mac_mode_get(ll_mac_type_t *mac_mode);
 
     /**
      * @brief
-     *   Get the module unique identifier
+     *   Get the module unique identifier.
      *
      * @param[out] unique_id
-     *   pointer to a unsigned 64-bit integer
+     *   pointer to a unsigned 64-bit integer.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_unique_id_get(uint64_t *unique_id);
 
     /**
      * @brief
-     *   Get the antenna configuration
+     *   Get the antenna configuration.
      *
      * @param[out] ant
      *   Antenna configuration.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_antenna_get(uint8_t *ant);
 
     /**
      * @brief
-     *   Set the antenna configuration
+     *   Set the antenna configuration.
      *
      * @param[in] ant
      *   Antenna configuration. (1=>U.FL, 2=>trace)
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_antenna_set(uint8_t ant);
 
@@ -295,7 +299,7 @@ extern "C" {
      *   This function stores settings to flash.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_settings_store(void);
 
@@ -307,7 +311,7 @@ extern "C" {
      *   This function stores settings to flash.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_settings_delete(void);
 
@@ -325,7 +329,7 @@ extern "C" {
      *   This function stores settings to flash.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_restore_defaults(void);
 
@@ -340,7 +344,7 @@ extern "C" {
      *   byte on the host UART.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_sleep(void);
 
@@ -352,7 +356,7 @@ extern "C" {
      *   This function forces the module to reset.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_reset_mcu(void);
 
@@ -364,16 +368,16 @@ extern "C" {
      *   This function forces the module to reset and enter bootloader mode.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - always.
      */
     int32_t ll_bootloader_mode(void);
 
      /**
       * @brief
-      *   Read (and optionally clear) IRQ flags in module
+      *   Read (and optionally clear) IRQ flags in module.
       *
       * @details
-      *   This function allows the host processor to check whether an event has occured in the
+      *   This function allows the external host to check whether an event has occurred in the
       *   module that has latched a bit in the "IRQ Flags" vector.
       *
       * @param[in] flags_to_clear
@@ -386,10 +390,11 @@ extern "C" {
       *   argument is non-zero, this argument is the value of the flags before the clear operation.
       *
       * @return
-      *   0 - success, negative otherwise
+      *   0 - success, negative otherwise.
       */
      int32_t ll_irq_flags(uint32_t flags_to_clear, uint32_t *flags);
 
+//STRIPTHIS!START
     /**
      * @brief
      *   Get the module's current timestamp value.
@@ -405,7 +410,7 @@ extern "C" {
      *   wrap back to zero roughly every 71 minutes.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_timestamp_get(uint32_t * timestamp_us);
 
@@ -431,14 +436,54 @@ extern "C" {
      *   was applied.
      *
      * @return
-     *   0 - success, negative otherwise
+     *   0 - success, negative otherwise.
      */
     int32_t ll_timestamp_set(ll_timestamp_operation_t operation, uint32_t timestamp_us, uint32_t * actual_timestamp_us);
+//STRIPTHIS!STOP
+//STRIPTHIS!START
+    /**
+    * @brief
+    *   Triggers watchdog reboot from host ifc.
+    *
+    * @details
+    *   None.
+    *
+    * @return
+    *   positive number of bytes queued,
+    *   negative if an error.
+    */
+    int32_t ll_trigger_watchdog(void);
 
+    /**
+    * @brief
+    *   Gets the assert info from the module.
+    *
+    * @details
+    *   None.
+    *
+    * @return
+    *   positive number of bytes queued,
+    *   negative if an error.
+    */
+    int32_t ll_get_assert_info(char *filename, uint16_t filename_len, uint32_t *line);
+
+    /**
+    * @brief
+    *   Triggers an assert (for test purposes).
+    *
+    * @details
+    *   None.
+    *
+    * @return
+    *   0 - success, negative otherwise.
+    */
+    int32_t ll_trigger_assert(void);
+
+//STRIPTHIS!STOP
 #if 0
      /**
       * @brief
-      *   Set IRQ flags in module
+      *   Set IRQ flags in module.
       *
       * @details
       *
@@ -447,22 +492,22 @@ extern "C" {
       * @param[out] flags mask
       *
       * @return
-      *   0 - success, negative otherwise
+      *   0 - success, negative otherwise.
       */
      int8_t ll_irq_flags_mask_get(uint32_t flags_to_clear, uint32_t *flags);
 
      /**
       * @brief
-      *   Set IRQ flags in module
+      *   Set IRQ flags in module.
       *
       * @details
       *
       * @param[in] none
       *
-      * @param[out] flags mask
+      * @param[out] flags mask.
       *
       * @return
-      *   0 - success, negative otherwise
+      *   0 - success, negative otherwise.
       */
      int8_t ll_irq_flags_mask_set(uint32_t flags_to_clear, uint32_t *flags);
 #endif
@@ -482,10 +527,10 @@ extern "C" {
      */
     int32_t ll_reset_state( void );
 
-    /** @} (end addtogroup Module_Interface) */
+    /** @} (end defgroup Module_Interface) */
 
 
-    /** @} (end addtogroup Link_Labs_Interface_Library) */
+    /** @} (end defgroup Link_Labs_Interface_Library) */
 
 #ifdef __cplusplus
 }
