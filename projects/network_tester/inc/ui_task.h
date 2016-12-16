@@ -28,6 +28,8 @@ typedef enum {
     LL_CONNECTION_FILTER_MENU,
     LL_FTP_DOWNLOAD_MENU,
     LL_FTP_INSTALL_MENU,
+    HIDDEN_MAIN_MENU,
+    HIDDEN_APP_TOKEN_MENU,
 } menu_names_t;
 
 typedef enum

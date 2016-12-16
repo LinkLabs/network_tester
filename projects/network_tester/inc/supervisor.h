@@ -6,6 +6,8 @@
 #define LL_FTP_FIRMWARE_ID_MODULE  (0x726c706d)
 #define LL_FTP_FIRMWARE_ID_NETTEST (0x6e657477)
 
+#define NET_TOKEN_OPEN         (0x4f50454e)
+
 typedef enum
 {
     MSG_WAITING_FOR_ACK,
@@ -27,6 +29,9 @@ typedef struct
     uint32_t id;
     uint32_t version;
 } ftp_header_data_t;
+
+extern const uint8_t DEFAULT_APPLICATION_TOKEN[];
+extern const uint8_t OFFLINE_APPLICATION_TOKEN[];
 
 // returns -1 if the flash vars are null
 int32_t load_ftp_flash_vars(uint32_t start_addr, ftp_header_data_t* data);

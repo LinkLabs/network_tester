@@ -31,8 +31,8 @@
 #include "timers.h"
 
 #define MIN_VERSION_MAJOR   (1)
-#define MIN_VERSION_MINOR   (4)
-#define MIN_VERSION_TAG     (0)
+#define MIN_VERSION_MINOR   (5)
+#define MIN_VERSION_TAG     (0/*1*/) // TODO: Update on v1.5.1 release
 
 #define SUP_STATUS_TIMEOUT_TICKS     (1000 / portTICK_RATE_MS)
 #define SUP_TIMER_TIMEOUT_TICKS     (100 / portTICK_RATE_MS)
@@ -51,9 +51,6 @@
 
 #define FTP_PORT (128)
 #define DL_BUFF_MAX_LEN (142)
-
-#define NET_TOKEN_OPEN         (0x4f50454e)
-#define NT_APP_TOKEN     0xd6, 0x84, 0x2f, 0x77, 0x4f, 0xe1, 0x7d, 0x8d, 0x0e, 0x81
 
 #define LLABS_DL_CHAN_SPACING             (526595)
 
@@ -169,8 +166,6 @@ static const char* sup_ftp_strings[3] = {
 
 #endif
 
-static uint8_t            s_app_token[] = {NT_APP_TOKEN};
-
 // ftp variables
 static ll_ftp_t           ftp;
 static ll_ftp_callbacks_t ftp_callbacks;
@@ -185,6 +180,9 @@ static TimerHandle_t    s_status_timer;
 static ll_vars_t s_ll_vars = {
     .mac_address = 0,
 };
+
+const uint8_t DEFAULT_APPLICATION_TOKEN[] = { 0xd6, 0x84, 0x2f, 0x77, 0x4f, 0xe1, 0x7d, 0x8d, 0x0e, 0x81 };
+const uint8_t OFFLINE_APPLICATION_TOKEN[] = { 0x0f, 0xf0, 0xff, 0x77, 0x4f, 0xe1, 0x7d, 0x8d, 0x0e, 0x81 };
 
 // supervisor task variables
 static supervisor_state_t   s_state;
@@ -395,7 +393,7 @@ static ll_ftp_return_code_t ftp_dl_config_callback(bool downlink_on)
 
     dl_mode = (downlink_on) ? LL_DL_ALWAYS_ON : LL_DL_MAILBOX;
 
-    return (ll_ftp_return_code_t) ll_config_set(net_token, s_app_token, dl_mode, 0);
+    return (ll_ftp_return_code_t) ll_config_set(net_token, app_token, dl_mode, 0);
 }
 
 static int32_t ll_xmodem_progress_callback(uint32_t sent, uint32_t total)
@@ -1105,12 +1103,17 @@ static void sup_initializing_state()
     GW_CONNECTED_LED(OFF);
 
     // Set module configuration
-    uint8_t app_token[APP_TOKEN_LEN], qos;
+    uint8_t app_token[APP_TOKEN_LEN], app_token_default[APP_TOKEN_LEN] = { 0 };
+    uint8_t qos;
     enum ll_downlink_mode dl_mode;
     uint32_t net_token;
     int32_t ret = ll_config_get(&net_token, app_token, &dl_mode, &qos);
     LL_ASSERT(ret >= 0);
-    ret = ll_config_set(net_token, s_app_token, LL_DL_ALWAYS_ON, 0);
+    ret = ll_config_set(
+            net_token,
+            (memcmp(app_token, app_token_default, APP_TOKEN_LEN) == 0) ? DEFAULT_APPLICATION_TOKEN : app_token,
+            LL_DL_ALWAYS_ON,
+            0);
     LL_ASSERT(ret >= 0);
 
     // Stay here until state is satisfied

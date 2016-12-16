@@ -151,6 +151,15 @@ const char connection_filter_menu_text[][LCD_COLUMNS] = { " Connect to All    ",
                                                   " Repeaters Only    "
 };
 const char ftp_install_menu_title[LCD_COLUMNS] = "Installing Firmware ";
+const char hidden_menu_title[LCD_COLUMNS] = "Hidden Menu        ";
+const char hidden_menu_text[][LCD_COLUMNS] = {" Change App Token   ",
+                                            " Delete Settings    ",
+                                            "                    "};
+
+const char hidden_app_token_menu_title[LCD_COLUMNS] = "Change App Token    ";
+const char hidden_app_token_menu_text[][LCD_COLUMNS] = {" Normal Mode        ",
+                                              " Offline Mode       ",
+                                              "                    "};
 
 // GPS Test Options
 #define GPS_MENU_MODE_MAX  2
@@ -176,7 +185,9 @@ const menu_info_t menus[] = {
     {set_dl_band_title, set_dl_band_text, 0, 4, 5},
     {connection_filter_menu_title, connection_filter_menu_text, 1, 3, 3},
     {ftp_download_menu_title, ftp_download_menu_text, 0, 0, 0},
-    {ftp_install_menu_title, "", 0, 1, 2}
+    {ftp_install_menu_title, "", 0, 1, 2},
+    {hidden_menu_title, hidden_menu_text, 0, 1, 2},
+    {hidden_app_token_menu_title, hidden_app_token_menu_text, 0, 1, 2},
 };
 
 // rtos variables
@@ -229,6 +240,8 @@ static void ui_print_mac_address_string(char *dest);
 static void ui_print_net_token(char *dest);
 static void ui_print_net_token_cursor();
 static void ui_menu_load_enabled_status(bool is_enabled);
+static void ui_menu_select_hidden_app_token_menu(void);
+static void ui_menu_select_hidden_menu(void);
 
 void ui_register_wipe_callback(void (*hook) (void))
 {
@@ -426,13 +439,13 @@ static portTASK_FUNCTION(btn_task, param)
         if(~btn_states & BACK_BTN_MASK)
         {
             uint32_t seconds_since_last_depress = seconds_since_last_depress = ((uint32_t)(xTaskGetTickCount() - last_back_btn_down_tick)) * portTICK_PERIOD_MS/1000;
-            if(seconds_since_last_depress > 5)
+            if(seconds_since_last_depress > 3)
             {
-                // Call wipe
-                if(NULL != s_wipe_callback)
-                {
-                    s_wipe_callback();
-                }
+                menu_pos = 0;
+                menu_mode = 0;
+                update_rate = 0;
+                active_menu = HIDDEN_MAIN_MENU;
+                ui_load_menu();
 
                 // Refresh time latch
                 last_back_btn_down_tick = xTaskGetTickCount();
@@ -557,6 +570,11 @@ static void ui_menu_load_ack_mode_enabled()
 static void ui_load_menu(void)
 {
     uint32_t menu_pos_floor;
+    uint8_t app_token[APP_TOKEN_LEN], qos;
+    enum ll_downlink_mode dl_mode;
+    uint32_t net_token;
+    int8_t active_pos;
+    int32_t ret;
 
     switch(active_menu)
     {
@@ -734,10 +752,93 @@ static void ui_load_menu(void)
             strncpy(screen[MENU_LINE_3], log[0], LCD_COLUMNS);
             xTaskNotifyGive(s_screen_task_handle);
             break;
+        case HIDDEN_MAIN_MENU:
+            strncpy(screen[0], hidden_menu_title, LCD_COLUMNS);
+            menu_pos_floor = (menu_pos/3) * 3;
+            strncpy(screen[1], hidden_menu_text[menu_pos_floor], LCD_COLUMNS);
+            strncpy(screen[2], hidden_menu_text[menu_pos_floor+1], LCD_COLUMNS);
+            strncpy(screen[3], hidden_menu_text[menu_pos_floor+2], LCD_COLUMNS);
+            screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
+        case HIDDEN_APP_TOKEN_MENU:
+            ret = ll_config_get(&net_token, app_token, &dl_mode, &qos);
+            LL_ASSERT(ret >= 0);
+
+            strncpy(screen[0], hidden_app_token_menu_title, LCD_COLUMNS);
+            strncpy(screen[1], hidden_app_token_menu_text[0], LCD_COLUMNS);
+            strncpy(screen[2], hidden_app_token_menu_text[1], LCD_COLUMNS);
+            strncpy(screen[3], hidden_app_token_menu_text[2], LCD_COLUMNS);
+            screen[(menu_pos%3)+1][0] = CURSOR_GLYPH;
+
+            if (app_token[0] == 0xd6)
+            {
+                active_pos = 0;
+            }
+            else
+            {
+                active_pos = 1;
+            }
+
+            screen[(active_pos % 3) + 1][LCD_COLUMNS - 2] = SMILE_GLYPH;
+
+            xTaskNotifyGive(s_screen_task_handle);
+            break;
+
         default:
             LL_ASSERT(false);
             break;
     }
+}
+
+static void ui_menu_select_hidden_menu(void)
+{
+    switch(menu_pos)
+    {
+        case CURSOR_LINE_1:
+            menu_pos = 0;
+            menu_mode = 0;
+            update_rate = 0;
+            active_menu = HIDDEN_APP_TOKEN_MENU;
+            ui_load_menu();
+            break;
+        case CURSOR_LINE_2:
+             // Call wipe
+            if(NULL != s_wipe_callback)
+            {
+                s_wipe_callback();
+            }
+            break;
+    }
+    xTaskNotifyGive(s_screen_task_handle);
+}
+
+static void ui_menu_select_hidden_app_token_menu(void)
+{
+    uint8_t app_token[APP_TOKEN_LEN], qos;
+    enum ll_downlink_mode dl_mode;
+    uint32_t net_token;
+
+    int32_t ret = ll_config_get(&net_token, app_token, &dl_mode, &qos);
+    LL_ASSERT(ret >= 0);
+
+    switch (menu_pos)
+    {
+        case CURSOR_LINE_1: // Normal Mode
+            memcpy(app_token, DEFAULT_APPLICATION_TOKEN, (size_t)(APP_TOKEN_LEN * sizeof(uint8_t)));
+            break;
+        case CURSOR_LINE_2: // Offline Mode
+            memcpy(app_token, OFFLINE_APPLICATION_TOKEN, (size_t)(APP_TOKEN_LEN * sizeof(uint8_t)));
+            break;
+        default:
+            break;
+    }
+
+    ret = ll_config_set(net_token, app_token, dl_mode, 0);
+    LL_ASSERT(ret >= 0);
+
+    ui_refresh_display();
+    xTaskNotifyGive(s_screen_task_handle);
 }
 
 static void ui_menu_select_gps_menu(void)
@@ -1116,6 +1217,12 @@ static void ui_menu_select(void)
         case LL_CONNECTION_FILTER_MENU:
             ui_menu_select_connection_filter_select();
             break;
+        case HIDDEN_MAIN_MENU:
+            ui_menu_select_hidden_menu();
+            break;
+        case HIDDEN_APP_TOKEN_MENU:
+            ui_menu_select_hidden_app_token_menu();
+            break;
         case LL_FTP_DOWNLOAD_MENU:
         default:
             break;
@@ -1169,9 +1276,12 @@ static void ui_menu_back(void)
         case DRIVE_MODE_DIAG_MENU:
         case ACK_MODE_DIAG_MENU:
         case LL_CONNECTION_FILTER_MENU:
+        case NETWORK_TOKEN_MENU:
             ui_menu_back_common();
             break;
-        case NETWORK_TOKEN_MENU:
+        case HIDDEN_MAIN_MENU:
+        case HIDDEN_APP_TOKEN_MENU:
+            active_menu = 1;
             ui_menu_back_common();
             break;
         case SET_DL_BAND_MENU:
@@ -1341,7 +1451,7 @@ static void ui_display_gw_info_dl_strength(llabs_network_info_t* net_info, uint3
         }
         gw_strength_string[sizeof(gw_strength_string)-1] = 0;
         temp_char = screen[MENU_LINE_1][0]; // have to save the first character of next line, since sprintf will put a null there
-        sprintf(screen[MENU_TITLE_LINE],"%s:%s%+4d", "GW", gw_strength_string, net_info->rssi);
+        sprintf(screen[MENU_TITLE_LINE],"%s:%s%+4d", /*net_info->is_repeater ? "REP" :*/ "GW", gw_strength_string, net_info->rssi);
         screen[MENU_LINE_1][0] = temp_char;
     }
     else if(3 == ll_state) //initializing
@@ -1545,9 +1655,9 @@ void ui_display_network_diagnostics(llabs_network_info_t* net_info, uint32_t ll_
 
     if(1 == ll_state) //connected
     {
-        sprintf(temp_string,"%s RSSI: %4ddBm    ", "GW", net_info->rssi);
+        sprintf(temp_string,"%s RSSI: %4ddBm    ", /*net_info->is_repeater ? "REP" : */"GW", net_info->rssi);
         strncpy(screen[MENU_LINE_1], temp_string, LCD_COLUMNS);
-        sprintf(temp_string,"%s ID: %08X     ", "GW", (unsigned int) net_info->gateway_id);
+        sprintf(temp_string,"%s ID: %08X     ", /*net_info->is_repeater ? "REP" : */"GW", (unsigned int) net_info->gateway_id);
         strncpy(screen[MENU_LINE_2], temp_string, LCD_COLUMNS);
         sprintf(temp_string,"Ch/Frq: %02d/%u", net_info->gateway_channel, (unsigned int) net_info->gateway_frequency);
         strncpy(screen[MENU_LINE_3], temp_string, LCD_COLUMNS);

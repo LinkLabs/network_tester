@@ -1,9 +1,9 @@
 #ifndef NETWORK_TESTER_VERSION_H_INCLUDED
 #define NETWORK_TESTER_VERSION_H_INCLUDED
 
-#define VERSION_STRING "        v1.0        "
+#define VERSION_STRING "        v1.1        "
 #define VERSION_MAJOR (1)
-#define VERSION_MINOR (0)
+#define VERSION_MINOR (1)
 #define VERSION_TAG   (0)
 
 #endif /* NETWORK_TESTER_VERSION_H_INCLUDED */
