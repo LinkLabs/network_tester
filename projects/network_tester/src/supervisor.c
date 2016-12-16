@@ -31,8 +31,8 @@
 #include "timers.h"
 
 #define MIN_VERSION_MAJOR   (1)
-#define MIN_VERSION_MINOR   (4)
-#define MIN_VERSION_TAG     (0)
+#define MIN_VERSION_MINOR   (5)
+#define MIN_VERSION_TAG     (0/*1*/) // TODO: Update on v1.5.1 release
 
 #define SUP_STATUS_TIMEOUT_TICKS     (1000 / portTICK_RATE_MS)
 #define SUP_TIMER_TIMEOUT_TICKS     (100 / portTICK_RATE_MS)
