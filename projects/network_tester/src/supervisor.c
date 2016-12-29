@@ -877,6 +877,18 @@ static void sup_flash_erase(void)
 
     //TODO :this shouldn't be necessary
     sup_wait_after_reset(MODULE_RESET_TIME_S * 1000);
+
+    // Set module configuration
+    uint8_t app_token[APP_TOKEN_LEN];
+    uint8_t qos;
+    enum ll_downlink_mode dl_mode;
+    uint32_t net_token;
+
+    ret = ll_config_get(&net_token, app_token, &dl_mode, &qos);
+    LL_ASSERT(ret >= 0);
+
+    ret = ll_config_set(net_token, DEFAULT_APPLICATION_TOKEN, LL_DL_ALWAYS_ON, 0);
+    LL_ASSERT(ret >= 0);
 }
 
 // Determines drive mode based on previously stored DL band config
@@ -1103,17 +1115,18 @@ static void sup_initializing_state()
     GW_CONNECTED_LED(OFF);
 
     // Set module configuration
-    uint8_t app_token[APP_TOKEN_LEN], app_token_default[APP_TOKEN_LEN] = { 0 };
+    uint8_t app_token[APP_TOKEN_LEN];
     uint8_t qos;
     enum ll_downlink_mode dl_mode;
     uint32_t net_token;
     int32_t ret = ll_config_get(&net_token, app_token, &dl_mode, &qos);
     LL_ASSERT(ret >= 0);
-    ret = ll_config_set(
-            net_token,
-            (memcmp(app_token, app_token_default, APP_TOKEN_LEN) == 0) ? DEFAULT_APPLICATION_TOKEN : app_token,
-            LL_DL_ALWAYS_ON,
-            0);
+
+    if (app_token[0] == 0x00)
+    {
+        ret = ll_config_set(net_token, DEFAULT_APPLICATION_TOKEN, LL_DL_ALWAYS_ON, 0);
+    }
+
     LL_ASSERT(ret >= 0);
 
     // Stay here until state is satisfied
@@ -1280,13 +1293,14 @@ static void sup_idle_state()
         		    sup_report_status();
 		            break;
                 case SUP_CMD_UART_PASSTHRU:
-        		    b_exit_state = true;
-        		    next_state = SUP_STATE_UART_PASSTHRU;
-        		    break;
-        		case SUP_CMD_LL_DL_BAND_CONFIG:
-        		    sup_dl_band_config(msg.Data);
-        		    b_exit_state = true;
-        		    next_state = SUP_STATE_LL_INITIALIZING;
+                    b_exit_state = true;
+                    next_state = SUP_STATE_UART_PASSTHRU;
+                    break;
+                case SUP_CMD_LL_DL_BAND_CONFIG:
+                    sup_dl_band_config(msg.Data);
+                    b_exit_state = true;
+                    next_state = SUP_STATE_LL_INITIALIZING;
+                    break;
                 case SUP_CMD_LL_UPDATE_RLP:
                     b_exit_state = true;
                     next_state = SUP_STATE_MODULE_UPGRADE;
