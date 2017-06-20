@@ -5,5 +5,4 @@ The Network Tester is a device used to evaluate Link Labs's Symphony Link Networ
 It includes a Symphony Link module, GPS recevier, and other sensors.
 
 # The source code has been moved!
-Please check out [our bitbucket](https://github.com/LinkLabs/network_tester)
-
+Please check out [our bitbucket](https://bitbucket.org/account/user/link-labs_engineering/projects/NET)
